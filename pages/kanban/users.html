@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciamento de Usuários</title>
+  <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    /* Shared styles for consistency */
+    
+    /* Hide scrollbar globally */
+    ::-webkit-scrollbar {
+        display: none;
+    }
+    html {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    body {
+        background-image: url("{{ url_for('static', filename='img/bb-background.png') }}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #1f2937;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .users-header {
+        background-color: white;
+        padding: 0.47rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        flex: none;
+    }
+
+    .users-title {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .main-container {
+        width: 100%;
+        max-width: 1280px; /* container mx-auto approximation */
+        margin: 1rem auto 0;
+        padding: 1rem;
+        flex: 1;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    @media (min-width: 1024px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    .sidebar-section {
+        grid-column: span 1;
+    }
+    .sidebar-stack > * + * {
+        margin-top: 1rem;
+    }
+    
+    .content-section {
+        grid-column: span 1;
+    }
+    @media (min-width: 1024px) {
+        .content-section {
+            grid-column: span 3;
+        }
+    }
+
+    /* Components */
+    .card {
+        background-color: rgba(255, 255, 255, 0.4);
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(5px);
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+    }
+
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.70rem;
+        font-weight: 700;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        margin-bottom: 0.1rem;
+    }
+    
+    .form-checkbox-label {
+        display: flex;
+        align-items: center;
+        font-size: 0.70rem;
+        font-weight: 700;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .form-input {
+        width: 100%;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.25rem;
+        padding: 0 0.5rem;
+        height: 1.75rem;
+        font-size: 0.85rem;
+        box-sizing: border-box;
+    }
+    .form-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px #3b82f6;
+    }
+    .form-input-sm {
+        font-size: 0.75rem;
+    }
+    
+    .form-checkbox {
+        border-radius: 0.25rem;
+        color: #2563eb;
+        margin-right: 0.5rem;
+    }
+    
+    .form-file-input {
+        width: 100%;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    .form-file-input::file-selector-button {
+        margin-right: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        border: 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background-color: #eff6ff;
+        color: #1d4ed8;
+    }
+    .form-file-input::file-selector-button:hover {
+        background-color: #dbeafe;
+    }
+    .form-color-input {
+        height: 1.75rem;
+        width: 50%;
+        padding: 0.1rem;
+        border: 1px solid #ebe5e9;
+        border-radius: 0.25rem;
+        cursor: pointer;
+    }
+
+    .btn-submit {
+        flex: 1;
+        height: 2rem;
+        padding: 0 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        border-radius: 0.25rem;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        transition: all 150ms;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-submit:hover {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+    }
+    
+    .btn-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-cancel {
+        width: 33.33%;
+        height: 2rem;
+        color: var(--primary-color);
+        padding: 0 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-cancel.visible { display: flex; }
+    .btn-cancel:hover { background-color: #9ca3af; }
+
+    /* User List Styles */
+    .user-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .user-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.3rem;
+        border-bottom: 1px solid #e5e7eb;
+        transition: background-color 0.15s;
+    }
+    .user-item:hover {
+        background-color: #f9fafb;
+    }
+    .user-item:last-child {
+        border-bottom: none;
+    }
+    .user-info-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .user-avatar {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.875rem;
+        font-weight: 700;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .user-details {
+        display: flex;
+        flex-direction: column;
+    }
+    .user-name-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .user-name {
+        font-weight: 600;
+        color: #374151;
+    }
+    .admin-badge {
+        font-size: 0.65rem;
+        color: #16a34a;
+        font-weight: 700;
+        background-color: #dcfce7;
+        padding: 0.1rem 0.4rem;
+        border-radius: 9999px;
+        text-transform: uppercase;
+    }
+    .user-meta {
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-icon {
+        padding: 0.25rem;
+        cursor: pointer;
+        border-radius: 0.25rem;
+        transition: background-color 0.15s;
+    }
+    .btn-icon:hover {
+        background-color: #f3f4f6;
+    }
+    .btn-edit { color: #3b82f6; }
+    .btn-edit:hover { color: #1d4ed8; }
+    .btn-delete { color: #ef4444; }
+    .btn-delete:hover { color: #b91c1c; }
+    .icon-svg {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+    .empty-list {
+        color: #6b7280;
+        text-align: center;
+        padding: 2rem 0;
+        font-style: italic;
+    }
+
+    /* Flash Messages */
+    .flash-message {
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    .flash-danger { background-color: #fee2e2; color: #b91c1c; }
+    .flash-success { background-color: #dcfce7; color: #15803d; }
+
+    /* Modal */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+    }
+    .modal.hidden { display: none; }
+    .modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    .modal-content {
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        width: 90%;
+        max-width: 400px;
+        z-index: 10;
+        position: relative;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  {% include 'partials/navbar.html' %}
+
+  <div class="users-header">
+      <h1 class="users-title">Gerenciamento de Usuários</h1>
+  </div>
+
+  <div class="main-container">
+
+    <div class="dashboard-grid">
+        
+        <!-- Sidebar Controls (Formulário) -->
+        <div class="sidebar-section sidebar-stack">
+            
+            <div class="card">
+                <h2 id="formTitle" class="card-title">{% if current_user.is_admin %}Cadastrar Novo Usuário{% else %}Meu Perfil{% endif %}</h2>
+                
+                <form id="userForm" action="{% if current_user.is_admin %}{{ url_for('users.create') }}{% else %}{{ url_for('users.update', user_id=current_user.id) }}{% endif %}" method="POST" enctype="multipart/form-data">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Nome</label>
+                        <input id="inputName" type="text" name="name" maxlength="20" required class="form-input" value="{% if not current_user.is_admin %}{{ current_user.name }}{% endif %}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Chave</label>
+                        <input id="inputKey" type="text" name="key" required maxlength="8" minlength="8" placeholder="Ex: C1234567" class="form-input" value="{% if not current_user.is_admin %}{{ current_user.key or '' }}{% endif %}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label id="labelPassword" class="form-label">{% if current_user.is_admin %}Senha Inicial{% else %}Nova Senha (opcional){% endif %}</label>
+                        <input id="inputPassword" type="password" name="password" class="form-input" {% if current_user.is_admin %}required{% endif %}>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Cor</label>
+                        <input id="inputColor" type="color" name="color" value="{% if not current_user.is_admin %}{{ current_user.color }}{% else %}#3b82f6{% endif %}" class="form-color-input" style="width: 100%;">
+                    </div>
+
+                    <div class="form-group {% if not current_user.is_admin %}hidden{% endif %}">
+                        <label class="form-checkbox-label">
+                            <input id="inputAdmin" type="checkbox" name="is_admin" class="form-checkbox">
+                            <span class="form-label" style="margin-bottom: 0;">Administrador</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Foto de Perfil</label>
+                        <input type="file" name="photo" accept="image/*" class="form-file-input">
+                    </div>
+                    
+           
+                    
+                    <div class="btn-row">
+                        <button id="submitBtn" type="submit" class="btn-submit">{% if current_user.is_admin %}Cadastrar{% else %}Salvar{% endif %}</button>
+                        <button id="cancelBtn" type="button" onclick="resetForm()" class="btn-cancel {% if not current_user.is_admin %}hidden{% endif %}">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+
+        <!-- Main Content (Lista de Usuários) -->
+        <div class="content-section">
+            <div class="card">
+                <h2 class="card-title">Usuários Cadastrados</h2>
+                <div class="user-list">
+                    {% for user in users %}
+                    {% if current_user.is_admin or user.id == current_user.id %}
+                    <div class="user-item">
+                        <div class="user-info-group">
+                            <div class="user-avatar" data-bg-color="{{ user.color }}">
+                                {% if user.photo %}
+                                <img src="data:image/png;base64,{{ user.photo }}" alt="{{ user.name }}">
+                                {% else %}
+                                {{ user.name[:2].upper() }}
+                                {% endif %}
+                            </div>
+                            <div class="user-details">
+                                <div class="user-name-row">
+                                    <span class="user-name">{{ user.name }}</span>
+                                    {% if user.is_admin %}
+                                    <span class="admin-badge">Admin</span>
+                                    {% endif %}
+                                </div>
+                                <div class="user-meta">
+                                    <span class="ml-0">Chave: {{ user.key }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button type="button" 
+                                    onclick="openEditUser(this)"
+                                    data-id="{{ user.id }}"
+                                    data-name="{{ user.name }}"
+                                    data-key="{{ user.key }}"
+                                    data-color="{{ user.color }}"
+                                    data-is-admin="{{ user.is_admin }}"
+                                    class="btn-icon btn-edit"
+                                    title="Editar">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon-svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                </svg>
+                            </button>
+                            {% if current_user.is_admin %}
+                            <button type="button" class="btn-icon btn-delete" onclick="openDeleteModal('{{ user.id }}', '{{ user.name }}')" title="Excluir">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon-svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <p class="empty-list">Nenhum usuário cadastrado.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="modal hidden">
+      <div class="modal-overlay" onclick="closeDeleteModal()"></div>
+      <div class="modal-content">
+          <h3 class="card-title" style="margin-bottom: 0.5rem;">Confirmar Exclusão</h3>
+          <p style="margin-bottom: 1rem; color: #4b5563;">
+              Tem certeza que deseja excluir o usuário <strong id="deleteUserName"></strong>?
+              Esta ação não pode ser desfeita.
+          </p>
+          
+          <form id="deleteForm" method="POST" action="">
+              <div class="form-group">
+                  <label class="form-label">Digite sua senha para confirmar:</label>
+                  <input type="password" name="password" required class="form-input" placeholder="Sua senha atual">
+              </div>
+              
+              <div class="btn-row" style="justify-content: flex-end;">
+                  <button type="button" onclick="closeDeleteModal()" class="btn-cancel visible" style="width: auto; padding-left: 1rem; padding-right: 1rem; margin-right: 0.5rem;">Cancelar</button>
+                  <button type="submit" class="btn-submit" style="flex-grow: 0; padding-left: 1rem; padding-right: 1rem; background-color: #ef4444;">Excluir Usuário</button>
+              </div>
+          </form>
+      </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.user-avatar[data-bg-color]').forEach(function(avatar) {
+            const bgColor = avatar.getAttribute('data-bg-color');
+            if (bgColor) {
+                avatar.style.backgroundColor = bgColor;
+            }
+        });
+    });
+
+    function openEditUser(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        const key = btn.getAttribute('data-key');
+        const color = btn.getAttribute('data-color');
+        const isAdmin = btn.getAttribute('data-is-admin') === '1' || btn.getAttribute('data-is-admin') === 'True';
+
+        // Update Form Title and Action
+        document.getElementById('formTitle').textContent = 'Editar Usuário';
+        const form = document.getElementById('userForm');
+        form.action = "{{ url_for('users.update', user_id='0') }}".replace('0', id);
+        
+        // Fill Inputs
+        document.getElementById('inputName').value = name;
+        document.getElementById('inputKey').value = key === 'None' ? '' : key;
+        document.getElementById('inputColor').value = color;
+        document.getElementById('inputAdmin').checked = isAdmin;
+        
+        // Update Password Field
+        const passInput = document.getElementById('inputPassword');
+        passInput.required = false;
+        passInput.value = '';
+        document.getElementById('labelPassword').textContent = 'Nova Senha (opcional)';
+        
+        // Update Buttons
+        document.getElementById('submitBtn').textContent = 'Salvar';
+        const cancelBtn = document.getElementById('cancelBtn');
+        cancelBtn.classList.remove('hidden');
+        cancelBtn.classList.add('visible');
+        
+        // Scroll to form on mobile
+        if (window.innerWidth < 1024) {
+            form.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function resetForm() {
+        // Reset Title and Action
+        document.getElementById('formTitle').textContent = 'Cadastrar Novo Usuário';
+        const form = document.getElementById('userForm');
+        form.action = "{{ url_for('users.create') }}";
+        
+        // Clear Inputs
+        form.reset();
+        
+        // Reset Password Field
+        const passInput = document.getElementById('inputPassword');
+        passInput.required = true;
+        document.getElementById('labelPassword').textContent = 'Senha Inicial';
+        
+        // Reset Buttons
+        document.getElementById('submitBtn').textContent = 'Cadastrar';
+        const cancelBtn = document.getElementById('cancelBtn');
+        cancelBtn.classList.remove('visible');
+        cancelBtn.classList.add('hidden');
+    }
+
+    // Auto-hide flash messages
+    setTimeout(function() {
+        const messages = document.querySelectorAll('.flash-message');
+        messages.forEach(function(msg) {
+            msg.style.transition = 'opacity 0.5s ease';
+            msg.style.opacity = '0';
+            setTimeout(function() {
+                msg.remove();
+            }, 500);
+        });
+    }, 3000);
+
+    // Modal Logic
+    function openDeleteModal(userId, userName) {
+        document.getElementById('deleteUserName').textContent = userName;
+        const form = document.getElementById('deleteForm');
+        form.action = "{{ url_for('users.delete', user_id='0') }}".replace('0', userId);
+        
+        const modal = document.getElementById('deleteModal');
+        modal.classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        const modal = document.getElementById('deleteModal');
+        modal.classList.add('hidden');
+    }
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeDeleteModal();
+        }
+    });
+  </script>
+
+</body>
+</html>

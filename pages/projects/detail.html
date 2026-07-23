@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalhes do Projeto</title>
+  <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    body {
+        font-family: var(--default-font);
+        background-color: #f3f4f6;
+    }
+    .text-primary {
+        color: var(--primary-color) !important;
+    }
+    .btn-primary-action {
+        background-color: var(--primary-color);
+        color: white;
+        transition: all 150ms;
+        font-weight: 700;
+        border-radius: 0.25rem;
+    }
+    .btn-primary-action:hover {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+    }
+    .btn-secondary-action {
+        background-color: white;
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
+        transition: all 150ms;
+        font-weight: 600;
+        border-radius: 0.25rem;
+    }
+    .btn-secondary-action:hover {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    .status-select-wrap {
+        position: relative;
+        display: inline-block;
+    }
+    .status-select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        min-width: 9.5rem;
+        padding: 0.4rem 2rem 0.4rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.2;
+        cursor: pointer;
+        background-image: none;
+    }
+    .status-select.status-select-sm {
+        min-width: 8.5rem;
+        padding: 0.3rem 1.8rem 0.3rem 0.65rem;
+        font-size: 0.7rem;
+    }
+    .status-select-arrow {
+        position: absolute;
+        right: 0.7rem;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: currentColor;
+        opacity: 0.85;
+    }
+    .project-header-toggle {
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        padding: 0.5rem;
+        color: #6b7280;
+        transition: all 150ms;
+    }
+    .project-header-toggle:hover {
+        background-color: #f3f4f6;
+        color: var(--primary-color);
+    }
+    .project-header-toggle svg {
+        transition: transform 150ms;
+    }
+    .project-header-toggle.is-open svg {
+        transform: rotate(180deg);
+    }
+    .inline-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 0.5rem;
+        color: #6b7280;
+        transition: color 150ms;
+        background: transparent;
+        border: 0;
+    }
+    .inline-icon-btn:hover {
+        color: var(--primary-color);
+    }
+    .inline-step-name-form {
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+    .inline-step-name-display {
+        font-size: 1.125rem;
+        font-weight: 600;
+        line-height: 1.75rem;
+    }
+    .inline-step-name-input {
+        width: 100%;
+        max-width: 22rem;
+        background: transparent;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        line-height: 1.75rem;
+        outline: none;
+    }
+    .inline-step-name-input:focus {
+        border-bottom-color: currentColor;
+    }
+    .kanban-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #374151;
+        background-color: #ffffff;
+        transition: all 150ms;
+    }
+    .kanban-link-btn:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+    .kanban-link-btn.is-linked {
+        background-color: #ecfdf5;
+        border-color: #86efac;
+        color: #166534;
+        cursor: not-allowed;
+    }
+    .task-grid-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 9rem 10rem 7.25rem;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    .task-grid-main {
+        min-width: 0;
+    }
+    .task-grid-kanban,
+    .task-grid-status,
+    .task-grid-details {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    .task-grid-kanban form,
+    .task-grid-status form {
+        margin: 0;
+    }
+    .task-grid-status form,
+    .task-grid-kanban form {
+        flex-shrink: 0;
+    }
+    .detail-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    .detail-action-btn {
+        width: 4.5rem;
+        text-align: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .detail-action-btn:hover {
+        color: #1d4ed8;
+    }
+    .detail-toggle-spacer {
+        width: 2.25rem;
+        height: 2.25rem;
+        flex-shrink: 0;
+    }
+    .task-connector-block {
+        position: relative;
+    }
+    .task-connector-block::before {
+        content: '';
+        position: absolute;
+        left: 2rem;
+        top: 1.5rem;
+        bottom: 1rem;
+        width: 2px;
+        background-color: #d1d5db;
+        z-index: 0;
+    }
+    .task-connector-block > * {
+        position: relative;
+        z-index: 1;
+    }
+    .subtask-grid-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 9rem 10rem 7.25rem;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .subtask-grid-main {
+        min-width: 0;
+    }
+    .subtask-grid-kanban,
+    .subtask-grid-status,
+    .subtask-grid-details {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    .subtask-grid-kanban form,
+    .subtask-grid-status form {
+        margin: 0;
+    }
+    .documentation-type-option input:checked + span {
+        border-color: var(--primary-color);
+        background-color: rgba(37, 99, 235, 0.08);
+        color: var(--primary-color);
+    }
+    @media (max-width: 820px) {
+        .task-grid-row,
+        .subtask-grid-row {
+            grid-template-columns: 1fr;
+        }
+        .task-grid-kanban,
+        .task-grid-status,
+        .task-grid-details,
+        .subtask-grid-kanban,
+        .subtask-grid-status,
+        .subtask-grid-details {
+            justify-content: flex-start;
+        }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+
+  {% include 'partials/navbar.html' %}
+
+  <div class="container mx-auto mt-8 p-4 flex-1">
+    <div class="bg-white rounded-lg shadow-md px-6 py-4 mb-6">
+        <div class="flex justify-between items-center gap-4">
+            <div class="py-0.5">
+                <h1 class="text-3xl font-bold leading-tight text-primary">{{ project.name }}</h1>
+            </div>
+            <div class="flex items-center gap-3 self-center">
+                {% if current_user.is_admin %}
+                <form action="{{ url_for('projects.update_status', project_id=project.id) }}" method="POST" class="inline-block">
+                    <div class="status-select-wrap">
+                        <select name="status" class="status-select js-status-change-select"
+                            data-item-label="projeto"
+                            data-theme-bg="{{ project.project_status_theme.pill_bg }}" data-theme-color="{{ project.project_status_theme.pill_text }}" data-theme-border="{{ project.project_status_theme.border }}">
+                            {% for project_status in project_status_options %}
+                            <option value="{{ project_status.value }}" {% if project.project_status == project_status.value %}selected{% endif %}>{{ project_status.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <svg class="status-select-arrow h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </form>
+                {% else %}
+                <span class="text-xs font-semibold px-3 py-2 rounded-full border"
+                    data-theme-bg="{{ project.project_status_theme.pill_bg }}" data-theme-color="{{ project.project_status_theme.pill_text }}" data-theme-border="{{ project.project_status_theme.border }}">
+                    {{ project.project_status_name }}
+                </span>
+                {% endif %}
+                <button type="button" id="projectDescriptionToggle" onclick="toggleProjectDescription()" class="project-header-toggle" aria-expanded="false" aria-controls="projectDescriptionContent" title="Mostrar descrição">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="projectDescriptionContent" class="hidden mt-3 border-t border-gray-100 pt-3">
+            <h2 class="text-sm font-bold uppercase tracking-wide text-gray-500 mb-2">Descrição</h2>
+            <p class="text-gray-700 whitespace-pre-line">{{ project.description or 'Sem descrição informada.' }}</p>
+            <div class="mt-4 border-t border-gray-100 pt-4">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <h2 class="text-sm font-bold tracking-wide text-gray-500">Documentações</h2>
+                    <button type="button" onclick="toggleElement('project-documentation-form')" class="text-xs btn-secondary-action px-3 py-1.5 flex items-center">
+                        <span class="mr-1">+</span> Documentação
+                    </button>
+                </div>
+
+                <div id="project-documentation-form" class="{% if open_description %}mb-4 rounded border border-gray-200 bg-gray-50 p-4{% else %}hidden mb-4 rounded border border-gray-200 bg-gray-50 p-4{% endif %}">
+                    <form action="{{ url_for('projects.add_documentation', project_id=project.id) }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+                        <div>
+                            <label for="projectDocumentationTitle" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Nome da documentação</label>
+                            <input id="projectDocumentationTitle" type="text" name="document_title" placeholder="Ex: Manual do projeto" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Tipo</span>
+                            <div class="grid gap-2 sm:grid-cols-3">
+                                <label class="documentation-type-option cursor-pointer">
+                                    <input type="radio" name="documentation_type" value="image" class="sr-only" checked data-documentation-type-option>
+                                    <span class="flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition">
+                                        Imagem
+                                    </span>
+                                </label>
+                                <label class="documentation-type-option cursor-pointer">
+                                    <input type="radio" name="documentation_type" value="file" class="sr-only" data-documentation-type-option>
+                                    <span class="flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition">
+                                        Arquivo
+                                    </span>
+                                </label>
+                                <label class="documentation-type-option cursor-pointer">
+                                    <input type="radio" name="documentation_type" value="link" class="sr-only" data-documentation-type-option>
+                                    <span class="flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition">
+                                        Link
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        <div data-documentation-type-section="image">
+                            <label for="projectDocumentationImage" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Imagem</label>
+                            <input
+                                id="projectDocumentationImage"
+                                type="file"
+                                name="document_image"
+                                accept="image/*,.png,.jpg,.jpeg,.gif,.webp"
+                                class="block w-full text-xs text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-700 hover:file:bg-gray-200"
+                            >
+                        </div>
+                        <div class="hidden" data-documentation-type-section="file">
+                            <label for="projectDocumentationFile" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Arquivo</label>
+                            <input
+                                id="projectDocumentationFile"
+                                type="file"
+                                name="document_file"
+                                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,application/pdf,image/*"
+                                class="block w-full text-xs text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-700 hover:file:bg-gray-200"
+                            >
+                        </div>
+                        <div class="hidden" data-documentation-type-section="link">
+                            <label for="projectDocumentationLink" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Link</label>
+                            <input id="projectDocumentationLink" type="url" name="link_url" placeholder="https://exemplo.com/documentacao" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="text-xs btn-primary-action px-4 py-2">Salvar documentação</button>
+                        </div>
+                    </form>
+                </div>
+
+                {% if project.documentation_items %}
+                <div class="space-y-2">
+                    {% for item in project.documentation_items %}
+                    <div class="rounded border border-gray-200 bg-white px-3 py-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                {% if item.item_type == 'file' %}
+                                <div class="min-w-0">
+                                    <a href="{{ storage_url(item.file_path) }}" target="_blank" rel="noopener noreferrer" class="block truncate text-sm font-semibold text-primary hover:underline">
+                                        {{ item.title or item.file_name }}
+                                    </a>
+                                    <p class="text-xs text-gray-500 truncate">{{ item.file_name }}</p>
+                                </div>
+                                {% else %}
+                                <div>
+                                    <a href="{{ item.link_url }}" target="_blank" rel="noopener noreferrer" class="block text-sm font-semibold text-primary hover:underline break-all">
+                                        {{ item.title or item.link_url }}
+                                    </a>
+                                    <p class="text-xs text-gray-500 break-all">{{ item.link_url }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                                    {% if item.item_type == 'file' %}
+                                    {{ 'Imagem' if item.is_image else 'Arquivo' }}
+                                    {% else %}
+                                    Link
+                                    {% endif %}
+                                </span>
+                                {% if project.can_manage_project %}
+                                <form action="{{ url_for('projects.remove_documentation', project_id=project.id, documentation_id=item.id) }}" method="POST" class="mt-2" onsubmit="return confirm('Deseja excluir esta documentação?');">
+                                    <button type="submit" class="text-[11px] font-semibold text-red-600 hover:text-red-800 transition-colors">
+                                        Excluir
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-400">Adicionado por {{ item.created_by_name or 'Nao informado' }} em {{ item.created_at_display }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-500 italic">Nenhuma documentação cadastrada para este projeto.</p>
+                {% endif %}
+            </div>
+            <div class="mt-3 flex justify-end items-end">
+                <p class="text-sm text-right text-gray-500">Criado por {{ project.created_by_name }} em {{ project.created_at_display }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <h2 class="text-2xl font-bold text-primary">Andamento do Projeto</h2>
+            {% if project.can_manage_project %}
+            <button type="button" onclick="toggleElement('add-project-step-form')" class="text-xs btn-secondary-action px-3 py-2 flex items-center">
+                <span class="mr-1">+</span> Tarefa
+            </button>
+            {% endif %}
+        </div>
+
+        {% if project.can_manage_project %}
+        <div id="add-project-step-form" class="hidden mb-6 p-4 bg-gray-50 rounded border border-gray-200">
+            <form action="{{ url_for('projects.add_step', project_id=project.id) }}" method="POST" class="flex gap-2">
+                <input type="text" name="step_name" placeholder="Nome da tarefa" required class="flex-1 text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                <button type="submit" class="text-xs btn-primary-action px-4 py-2">Adicionar</button>
+                <button type="button" onclick="toggleElement('add-project-step-form')" class="text-xs text-gray-500 hover:text-gray-700 px-2">Cancelar</button>
+            </form>
+        </div>
+        {% endif %}
+        
+        <div class="space-y-4">
+            {% for step in project.steps %}
+            {% set step_index = loop.index0 %}
+            <div class="task-connector-block border rounded-lg overflow-hidden" data-theme-border="{{ step.status_theme.border }}">
+                <!-- Header do Passo -->
+                <div class="px-4 py-2 task-grid-row" data-theme-bg="{{ step.status_theme.surface }}">
+                    <div class="flex items-center task-grid-main">
+                        <div class="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center mr-4"
+                             data-theme-bg="{{ step.status_theme.accent }}" data-theme-color="{{ step.status_theme.accent_text }}">
+                            {% if step.status == 'done' %}✓{% else %}{{ loop.index }}{% endif %}
+                        </div>
+                        <form action="{{ url_for('projects.update_step_name', project_id=project.id, step_index=step_index) }}" method="POST" class="inline-step-name-form" data-step-name-form>
+                            <span class="inline-step-name-display" data-theme-color="{{ step.status_theme.text }}" data-step-name-display>{{ step.name }}</span>
+                            <input type="text" name="step_name" value="{{ step.name }}" required class="inline-step-name-input hidden" data-theme-color="{{ step.status_theme.text }}" data-step-name-input aria-label="Nome da tarefa">
+                            <button type="button" class="inline-icon-btn" title="Editar nome da tarefa" aria-label="Editar nome da tarefa" onclick="enableStepNameEdit(this)">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L12 14l-4 1 1-4 7.5-7.5z" />
+                                </svg>
+                            </button>
+                            <button type="submit" class="inline-icon-btn hidden" title="Salvar nome da tarefa" aria-label="Salvar nome da tarefa" data-step-name-save>
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7zM8 5h6v4H8zm11 14H5V5h1v6h10V5.5L18.5 8H19z"/>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="task-grid-kanban">
+                        {% if step.has_kanban_card %}
+                        <button type="button" class="kanban-link-btn is-linked" disabled>
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Kanban
+                        </button>
+                        {% elif step.can_add_to_kanban %}
+                        <form action="{{ url_for('projects.add_step_to_kanban', project_id=project.id, step_index=step_index) }}" method="POST" class="js-kanban-add-form" data-item-label="tarefa" data-item-name="{{ step.name }}">
+                            <button type="submit" class="kanban-link-btn">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Kanban
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <div class="task-grid-status">
+                        <form action="{{ url_for('projects.update_step', project_id=project.id, step_index=step_index) }}" method="POST">
+                            <div class="status-select-wrap">
+                                <select name="status" class="status-select status-select-sm js-status-change-select"
+                                    data-item-label="tarefa"
+                                    data-theme-bg="{{ step.status_theme.pill_bg }}" data-theme-color="{{ step.status_theme.pill_text }}" data-theme-border="{{ step.status_theme.border }}">
+                                    {% for status_column in status_columns %}
+                                    <option value="{{ status_column.slug }}" {% if step.status == status_column.slug %}selected{% endif %}>{{ status_column.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <svg class="status-select-arrow h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="task-grid-details">
+                        <div class="detail-actions">
+                            <button type="button" onclick="toggleElement('taskDetails-{{ step_index }}')" class="detail-action-btn" aria-controls="taskDetails-{{ step_index }}" title="Mostrar detalhes da tarefa">
+                                Detalhes
+                            </button>
+                            <button type="button" id="taskToggle-{{ step_index }}" onclick="toggleTaskSection('{{ step_index }}')" class="project-header-toggle" aria-expanded="false" aria-controls="taskContent-{{ step_index }}" title="Mostrar ou ocultar subtarefas">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="taskDetails-{{ step_index }}" class="hidden pt-4 px-4 pb-2 bg-white border-t border-gray-100">
+                    {% if step.has_kanban_card and step.kanban_card %}
+                    <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+                        <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <h5 class="text-xs font-bold text-gray-500 uppercase tracking-wide">Task no Kanban</h5>
+                                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                                    data-theme-bg="{{ step.status_theme.pill_bg }}" data-theme-color="{{ step.status_theme.pill_text }}" data-theme-border="{{ step.status_theme.border }}">
+                                    {{ step.kanban_card.column_name }}
+                                </span>
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2 text-sm">
+                                <div>
+                                    <span class="font-semibold text-gray-600">Titulo:</span>
+                                    <span class="text-gray-800">{{ step.kanban_card.title }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-gray-600">Responsavel:</span>
+                                    <span class="text-gray-800">{{ step.kanban_card.assigned_to_name }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-gray-600">Prioridade:</span>
+                                    <span class="text-gray-800">{{ step.kanban_card.prioridade or 'Nao informado' }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-gray-600">Inicio:</span>
+                                    <span class="text-gray-800">{{ step.kanban_card.start_date_display or 'Nao informado' }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-gray-600">Fim:</span>
+                                    <span class="text-gray-800">{{ step.kanban_card.end_date_display or 'Nao informado' }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-gray-600">Entrega:</span>
+                                    <span class="text-gray-800">{{ step.kanban_card.delivery_date_display or 'Nao informado' }}</span>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <span class="font-semibold text-gray-600">Impedimento:</span>
+                                    <span class="text-gray-800">
+                                        {% if step.kanban_card.impedido %}
+                                        {{ step.kanban_card.impedimento or 'Marcado como impedido' }}
+                                        {% else %}
+                                        Nenhum
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            {% if step.kanban_card.description %}
+                            <div class="mt-3 border-t border-gray-100 pt-3">
+                                <h6 class="text-xs font-bold text-gray-500 uppercase mb-1">Descricao</h6>
+                                <p class="text-gray-700 whitespace-pre-wrap">{{ step.kanban_card.description }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="rounded-lg border border-gray-200 bg-white p-4">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <div class="flex items-center gap-3">
+                                    <h5 class="text-xs font-bold text-gray-500 tracking-wide">Anotações</h5>
+                                    <span class="text-xs font-semibold text-gray-500">{{ step.kanban_notes_count }}/10</span>
+                                </div>
+                                {% if step.can_add_kanban_note %}
+                                <button type="button" onclick="toggleElement('kanban-task-note-form-{{ step_index }}')" class="text-xs btn-secondary-action px-2 py-1 flex items-center">
+                                    <span class="mr-1">+</span> Nota
+                                </button>
+                                {% endif %}
+                            </div>
+
+                            {% if step.kanban_notes %}
+                            <div class="mb-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                                {% for kanban_note in step.kanban_notes %}
+                                <div class="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+                                    <div class="flex items-center justify-between gap-3 mb-1">
+                                        <span class="text-[11px] text-gray-400">{{ kanban_note.created_by_name or 'Nao informado' }}</span>
+                                        <span class="text-xs text-gray-400">{{ kanban_note.created_at_display }}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ kanban_note.note }}</p>
+                                    {% if kanban_note.images %}
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        {% for img in kanban_note.images %}
+                                        <button type="button" data-image-src="{{ storage_url(img) }}" onclick="openImagePreviewModal(this.dataset.imageSrc)" class="block overflow-hidden rounded border border-gray-300">
+                                            <img src="{{ storage_url(img) }}" class="h-14 w-14 object-cover hover:opacity-75">
+                                        </button>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-sm text-gray-400 italic mb-3">Nenhuma nota criada para esta task no Kanban.</p>
+                            {% endif %}
+
+                            {% if step.can_add_kanban_note %}
+                            <div id="kanban-task-note-form-{{ step_index }}" class="hidden border-t border-gray-100 pt-3">
+                                <form action="{{ url_for('projects.add_step_kanban_note_route', project_id=project.id, step_index=step_index) }}" method="POST" enctype="multipart/form-data" class="js-kanban-note-form" data-max-images="5">
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Nova nota</label>
+                                    <textarea name="note" rows="2" maxlength="500" class="w-full text-sm border border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none" placeholder="Digite uma nota para esta task do Kanban"></textarea>
+                                    <div class="mt-3">
+                                        <input type="file" name="images" multiple accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 js-kanban-note-images-input">
+                                        <div class="mt-3 hidden js-kanban-note-images-preview"></div>
+                                    </div>
+                                    <div class="mt-3 flex justify-end">
+                                        <button type="submit" class="text-xs btn-primary-action px-4 py-1.5 font-medium">Salvar nota</button>
+                                    </div>
+                                </form>
+                            </div>
+                            {% elif step.kanban_note_permission_denied %}
+                            <p class="text-xs font-medium text-gray-500 border-t border-gray-100 pt-3">Somente administradores ou o responsável por esta tarefa podem adicionar notas.</p>
+                            {% else %}
+                            <p class="text-xs font-medium text-gray-500 border-t border-gray-100 pt-3">Limite de 10 notas atingido para esta task do Kanban.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mb-4 rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-500">
+                        Esta tarefa ainda nao foi criada no Kanban.
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div id="taskContent-{{ step_index }}" class="hidden pt-4 px-4 pb-2 bg-white border-t border-gray-100">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-sm font-bold text-gray-500 tracking-wide">Subtarefas</h4>
+                        {% if step.can_add_substep %}
+                        <button onclick="toggleElement('add-task-{{ step_index }}')" class="text-xs btn-secondary-action px-2 py-1 flex items-center">
+                            <span class="mr-1">+</span> Subtarefa
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <!-- Formulário para nova tarefa -->
+                    {% if step.can_add_substep %}
+                    <div id="add-task-{{ step_index }}" class="hidden mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                        <form action="{{ url_for('projects.add_substep', project_id=project.id, step_index=step_index) }}" method="POST" class="flex gap-2">
+                            <input type="text" name="substep_name" placeholder="Nome da subtarefa" required class="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+                            <button type="submit" class="text-xs btn-primary-action px-3 py-1">Adicionar</button>
+                            <button type="button" onclick="toggleElement('add-task-{{ step_index }}')" class="text-xs text-gray-500 hover:text-gray-700 px-2">Cancelar</button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if step.substeps %}
+                    <div class="space-y-1">
+                        {% for substep in step.substeps %}
+                        {% set substep_index = loop.index0 %}
+                        {% set detail_key = step_index ~ '-' ~ substep_index %}
+                        <div class="border-b border-gray-100 last:border-0 pb-1">
+                            <div class="subtask-grid-row px-2 py-1 rounded hover:bg-gray-50">
+                                <div class="flex items-center subtask-grid-main">
+                                    <span class="w-2 h-2 rounded-full mr-3" data-theme-bg="{{ substep.status_theme.accent }}">
+                                    </span>
+                                    <form action="{{ url_for('projects.update_substep_name', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" class="inline-step-name-form" data-step-name-form>
+                                        <span class="inline-step-name-display text-sm {% if substep.status == 'done' %}text-gray-400 line-through{% else %}text-gray-700{% endif %}" data-step-name-display>{{ substep.name }}</span>
+                                        <input type="text" name="substep_name" value="{{ substep.name }}" required class="inline-step-name-input hidden text-sm text-gray-700" data-step-name-input aria-label="Nome da subtarefa">
+                                        <button type="button" class="inline-icon-btn" title="Editar nome da subtarefa" aria-label="Editar nome da subtarefa" onclick="enableStepNameEdit(this)">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L12 14l-4 1 1-4 7.5-7.5z" />
+                                            </svg>
+                                        </button>
+                                        <button type="submit" class="inline-icon-btn hidden" title="Salvar nome da subtarefa" aria-label="Salvar nome da subtarefa" data-step-name-save>
+                                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7zM8 5h6v4H8zm11 14H5V5h1v6h10V5.5L18.5 8H19z"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                    {% if substep.status == 'done' and substep.completed_at %}
+                                    <span class="text-xs font-normal ml-2" data-theme-color="{{ substep.status_theme.pill_text }}">({{ substep.completed_at }})</span>
+                                    {% endif %}
+                                </div>
+                                <div class="subtask-grid-kanban">
+                                    {% if substep.has_kanban_card %}
+                                    <button type="button" class="kanban-link-btn is-linked" disabled>
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Kanban
+                                    </button>
+                                    {% elif substep.can_add_to_kanban %}
+                                    <form action="{{ url_for('projects.add_substep_to_kanban', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" class="js-kanban-add-form" data-item-label="subtarefa" data-item-name="{{ substep.name }}">
+                                        <button type="submit" class="kanban-link-btn">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Kanban
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                <div class="subtask-grid-status">
+                                    <form action="{{ url_for('projects.update_substep', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST">
+                                        <div class="status-select-wrap">
+                                            <select name="status" class="status-select status-select-sm js-status-change-select"
+                                                data-item-label="subtarefa"
+                                                data-theme-bg="{{ substep.status_theme.pill_bg }}" data-theme-color="{{ substep.status_theme.pill_text }}" data-theme-border="{{ substep.status_theme.border }}">
+                                                {% for status_column in status_columns %}
+                                                <option value="{{ status_column.slug }}" {% if substep.status == status_column.slug %}selected{% endif %}>{{ status_column.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <svg class="status-select-arrow h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="subtask-grid-details">
+                                    <div class="detail-actions">
+                                        <button type="button" onclick="toggleElement('details-{{ step_index }}-{{ substep_index }}')" class="detail-action-btn">
+                                            Detalhes
+                                        </button>
+                                        <span class="detail-toggle-spacer" aria-hidden="true"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Detalhes do Subpasso -->
+                            <div id="details-{{ step_index }}-{{ substep_index }}" class="hidden p-4 bg-gray-50 border-t border-gray-100 ml-4 border-l-2 border-blue-200 mt-2 text-sm">
+                                {% if substep.has_kanban_card and substep.kanban_card %}
+                                <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                                    <div class="flex items-center justify-between gap-3 mb-3">
+                                        <h5 class="text-xs font-bold text-gray-500 uppercase tracking-wide">Task no Kanban</h5>
+                                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                                            data-theme-bg="{{ substep.status_theme.pill_bg }}" data-theme-color="{{ substep.status_theme.pill_text }}" data-theme-border="{{ substep.status_theme.border }}">
+                                            {{ substep.kanban_card.column_name }}
+                                        </span>
+                                    </div>
+                                    <div class="grid gap-2 md:grid-cols-2 text-sm">
+                                        <div>
+                                            <span class="font-semibold text-gray-600">Titulo:</span>
+                                            <span class="text-gray-800">{{ substep.kanban_card.title }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="font-semibold text-gray-600">Responsavel:</span>
+                                            <span class="text-gray-800">{{ substep.kanban_card.assigned_to_name }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="font-semibold text-gray-600">Prioridade:</span>
+                                            <span class="text-gray-800">{{ substep.kanban_card.prioridade or 'Nao informado' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="font-semibold text-gray-600">Inicio:</span>
+                                            <span class="text-gray-800">{{ substep.kanban_card.start_date_display or 'Nao informado' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="font-semibold text-gray-600">Fim:</span>
+                                            <span class="text-gray-800">{{ substep.kanban_card.end_date_display or 'Nao informado' }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="font-semibold text-gray-600">Entrega:</span>
+                                            <span class="text-gray-800">{{ substep.kanban_card.delivery_date_display or 'Nao informado' }}</span>
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <span class="font-semibold text-gray-600">Impedimento:</span>
+                                            <span class="text-gray-800">
+                                                {% if substep.kanban_card.impedido %}
+                                                {{ substep.kanban_card.impedimento or 'Marcado como impedido' }}
+                                                {% else %}
+                                                Nenhum
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {% if substep.kanban_card.description %}
+                                    <div class="mt-3 border-t border-gray-100 pt-3">
+                                        <h6 class="text-xs font-bold text-gray-500 uppercase mb-1">Descricao</h6>
+                                        <p class="text-gray-700 whitespace-pre-wrap">{{ substep.kanban_card.description }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                    <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                                    <div class="flex items-center justify-between gap-3 mb-3">
+                                        <div class="flex items-center gap-3">
+                                            <h5 class="text-xs font-bold text-gray-500 tracking-wide">Anotações</h5>
+                                            <span class="text-xs font-semibold text-gray-500">{{ substep.kanban_notes_count }}/10</span>
+                                        </div>
+                                        {% if substep.can_add_kanban_note %}
+                                        <button type="button" onclick="toggleElement('kanban-note-form-{{ detail_key }}')" class="text-xs btn-secondary-action px-2 py-1 flex items-center">
+                                            <span class="mr-1">+</span> Nota
+                                        </button>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if substep.kanban_notes %}
+                                    <div class="mb-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                                        {% for kanban_note in substep.kanban_notes %}
+                                        <div class="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+                                            <div class="flex items-center justify-between gap-3 mb-1">
+                                                <span class="text-[11px] text-gray-400">{{ kanban_note.created_by_name or 'Nao informado' }}</span>
+                                                <span class="text-xs text-gray-400">{{ kanban_note.created_at_display }}</span>
+                                            </div>
+                                            <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ kanban_note.note }}</p>
+                                            {% if kanban_note.images %}
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                {% for img in kanban_note.images %}
+                                                <button type="button" data-image-src="{{ storage_url(img) }}" onclick="openImagePreviewModal(this.dataset.imageSrc)" class="block overflow-hidden rounded border border-gray-300">
+                                                    <img src="{{ storage_url(img) }}" class="h-14 w-14 object-cover hover:opacity-75">
+                                                </button>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <p class="text-sm text-gray-400 italic mb-3">Nenhuma nota criada para esta task no Kanban.</p>
+                                    {% endif %}
+
+                                    {% if substep.can_add_kanban_note %}
+                                    <div id="kanban-note-form-{{ detail_key }}" class="hidden border-t border-gray-100 pt-3">
+                                        <form action="{{ url_for('projects.add_substep_kanban_note_route', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" enctype="multipart/form-data" class="js-kanban-note-form" data-max-images="5">
+                                            <label class="block text-xs font-bold text-gray-700 mb-1">Nova nota</label>
+                                            <textarea name="note" rows="2" maxlength="500" class="w-full text-sm border border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none" placeholder="Digite uma nota para esta task do Kanban"></textarea>
+                                            <div class="mt-3">
+                                                <input type="file" name="images" multiple accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 js-kanban-note-images-input">
+                                                <p class="text-xs text-gray-400 mt-1">Voce pode anexar ate 5 imagens na mesma nota.</p>
+                                                <div class="mt-3 hidden js-kanban-note-images-preview"></div>
+                                            </div>
+                                            <div class="mt-3 flex justify-end">
+                                                <button type="submit" class="text-xs btn-primary-action px-4 py-1.5 font-medium">Salvar nota</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% elif substep.kanban_note_permission_denied %}
+                                    <p class="text-xs font-medium text-gray-500 border-t border-gray-100 pt-3">Somente administradores ou o responsável por esta subtarefa podem adicionar notas.</p>
+                                    {% else %}
+                                    <p class="text-xs font-medium text-gray-500 border-t border-gray-100 pt-3">Limite de 10 notas atingido para esta task do Kanban.</p>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <div class="mb-4 rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-500">
+                                    Esta subtarefa ainda nao foi criada no Kanban.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-sm text-gray-400 italic">Nenhuma subtarefa adicionada.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500 italic">Nenhuma tarefa definida.</p>
+            {% endfor %}
+        </div>
+    </div>
+  </div>
+
+  {% with modal_id='moveConfirmModal', message_id='moveConfirmMessage', cancel_func='cancelStatusChange()', confirm_func='confirmStatusChange()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
+  {% with modal_id='addKanbanConfirmModal', message_id='addKanbanConfirmMessage', cancel_func='cancelKanbanAdd()', confirm_func='confirmKanbanAdd()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
+
+  <div id="imagePreviewModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black bg-opacity-80" onclick="closeImagePreviewModal()">
+    <div class="relative flex max-h-[92vh] max-w-[92vw] items-center justify-center p-4" onclick="event.stopPropagation()">
+      <button type="button" onclick="closeImagePreviewModal()" class="absolute right-2 top-2 rounded-full bg-black bg-opacity-55 p-2 text-white hover:bg-opacity-75" title="Fechar">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+      <img id="imagePreviewModalImg" src="" alt="Imagem ampliada" class="max-h-[88vh] max-w-[88vw] rounded-lg object-contain shadow-2xl">
+    </div>
+  </div>
+
+  <script>
+    let pendingStatusChange = null;
+    let pendingKanbanAdd = null;
+    const taskSectionStorageKey = 'project-task-sections-{{ project.id }}';
+
+    function getStoredTaskSectionState() {
+        try {
+            const rawState = localStorage.getItem(taskSectionStorageKey);
+            return rawState ? JSON.parse(rawState) : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function setStoredTaskSectionState(stepIndex, isExpanded) {
+        const currentState = getStoredTaskSectionState();
+        currentState[String(stepIndex)] = isExpanded;
+        localStorage.setItem(taskSectionStorageKey, JSON.stringify(currentState));
+    }
+
+    function applyTaskSectionState(stepIndex, isExpanded) {
+        const contentEl = document.getElementById(`taskContent-${stepIndex}`);
+        const toggleEl = document.getElementById(`taskToggle-${stepIndex}`);
+        if (!contentEl || !toggleEl) {
+            return;
+        }
+
+        contentEl.classList.toggle('hidden', !isExpanded);
+        toggleEl.classList.toggle('is-open', isExpanded);
+        toggleEl.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+
+    function restoreTaskSectionStates() {
+        const storedState = getStoredTaskSectionState();
+        document.querySelectorAll('[id^="taskContent-"]').forEach(function(contentEl) {
+            const stepIndex = contentEl.id.replace('taskContent-', '');
+            const isExpanded = storedState[String(stepIndex)] === true;
+            applyTaskSectionState(stepIndex, isExpanded);
+        });
+    }
+
+    function restoreOpenDetailFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const openDetail = params.get('open_detail');
+        if (!openDetail) {
+            return;
+        }
+
+        const parts = openDetail.split('-');
+        if (parts.length !== 2) {
+            return;
+        }
+
+        const stepIndex = parts[0];
+        applyTaskSectionState(stepIndex, true);
+        setStoredTaskSectionState(stepIndex, true);
+
+        const detailEl = document.getElementById(`details-${openDetail}`);
+        if (detailEl) {
+            detailEl.classList.remove('hidden');
+        }
+
+        const kanbanNoteStatus = params.get('kanban_note_status');
+        if (kanbanNoteStatus && kanbanNoteStatus !== 'created') {
+            const noteFormEl = document.getElementById(`kanban-note-form-${openDetail}`);
+            if (noteFormEl) {
+                noteFormEl.classList.remove('hidden');
+            }
+        }
+    }
+
+    function restoreOpenTaskFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const openTask = params.get('open_task');
+        if (openTask === null || openTask === '') {
+            return;
+        }
+
+        const taskDetailsEl = document.getElementById(`taskDetails-${openTask}`);
+        if (taskDetailsEl) {
+            taskDetailsEl.classList.remove('hidden');
+        }
+
+        const kanbanTaskNoteStatus = params.get('kanban_task_note_status');
+        if (kanbanTaskNoteStatus && kanbanTaskNoteStatus !== 'created') {
+            const noteFormEl = document.getElementById(`kanban-task-note-form-${openTask}`);
+            if (noteFormEl) {
+                noteFormEl.classList.remove('hidden');
+            }
+        }
+    }
+
+    function applyThemeStyles() {
+        document.querySelectorAll('[data-theme-bg], [data-theme-color], [data-theme-border]').forEach(function(element) {
+            if (element.dataset.themeBg) {
+                element.style.backgroundColor = element.dataset.themeBg;
+            }
+            if (element.dataset.themeColor) {
+                element.style.color = element.dataset.themeColor;
+            }
+            if (element.dataset.themeBorder) {
+                element.style.borderColor = element.dataset.themeBorder;
+            }
+        });
+    }
+
+    function toggleElement(id) {
+        const element = document.getElementById(id);
+        if (element) {
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+            } else {
+                element.classList.add('hidden');
+            }
+        }
+    }
+
+    function toggleProjectDescription() {
+        const contentEl = document.getElementById('projectDescriptionContent');
+        const toggleEl = document.getElementById('projectDescriptionToggle');
+        if (!contentEl || !toggleEl) {
+            return;
+        }
+
+        const isHidden = contentEl.classList.contains('hidden');
+        contentEl.classList.toggle('hidden', !isHidden);
+        toggleEl.classList.toggle('is-open', isHidden);
+        toggleEl.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+    }
+
+    function syncProjectDocumentationType() {
+        const selectedOption = document.querySelector('[data-documentation-type-option]:checked');
+        const currentType = selectedOption ? selectedOption.value : 'image';
+
+        document.querySelectorAll('[data-documentation-type-section]').forEach(function(sectionEl) {
+            const isActive = sectionEl.dataset.documentationTypeSection === currentType;
+            sectionEl.classList.toggle('hidden', !isActive);
+
+            sectionEl.querySelectorAll('input').forEach(function(inputEl) {
+                if (inputEl.type === 'file' || inputEl.type === 'url') {
+                    inputEl.required = isActive;
+                }
+                if (!isActive && inputEl.type === 'file') {
+                    inputEl.value = '';
+                }
+                if (!isActive && inputEl.type === 'url') {
+                    inputEl.value = '';
+                }
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const shouldOpenDescription = "{{ 'true' if open_description else 'false' }}" === 'true';
+        if (shouldOpenDescription) {
+            toggleProjectDescription();
+        }
+
+        document.querySelectorAll('[data-documentation-type-option]').forEach(function(optionEl) {
+            optionEl.addEventListener('change', syncProjectDocumentationType);
+        });
+        syncProjectDocumentationType();
+    });
+
+    function toggleTaskSection(stepIndex) {
+        const contentEl = document.getElementById(`taskContent-${stepIndex}`);
+        const toggleEl = document.getElementById(`taskToggle-${stepIndex}`);
+        if (!contentEl || !toggleEl) {
+            return;
+        }
+
+        const isHidden = contentEl.classList.contains('hidden');
+        const nextExpandedState = isHidden;
+        applyTaskSectionState(stepIndex, nextExpandedState);
+        setStoredTaskSectionState(stepIndex, nextExpandedState);
+    }
+
+    function enableStepNameEdit(buttonElement) {
+        const form = buttonElement.closest('[data-step-name-form]');
+        if (!form) {
+            return;
+        }
+
+        const displayEl = form.querySelector('[data-step-name-display]');
+        const inputEl = form.querySelector('[data-step-name-input]');
+        const saveEl = form.querySelector('[data-step-name-save]');
+
+        if (!displayEl || !inputEl || !saveEl) {
+            return;
+        }
+
+        displayEl.classList.add('hidden');
+        inputEl.classList.remove('hidden');
+        saveEl.classList.remove('hidden');
+        buttonElement.classList.add('hidden');
+        inputEl.focus();
+        inputEl.select();
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function showStatusChangeModal(selectElement, previousLabel, nextLabel) {
+        const itemLabel = selectElement.dataset.itemLabel || 'item';
+        const messageEl = document.getElementById('moveConfirmMessage');
+        const safePreviousLabel = escapeHtml(previousLabel);
+        const safeNextLabel = escapeHtml(nextLabel);
+
+        if (messageEl) {
+            messageEl.innerHTML = `Deseja mover este ${itemLabel}?<br>
+            <div class="mt-3 flex items-center justify-center gap-2 font-bold text-lg text-gray-800">
+                <span>${safePreviousLabel}</span>
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                <span>${safeNextLabel}</span>
+            </div>`;
+        }
+
+        document.getElementById('moveConfirmModal').classList.remove('hidden');
+    }
+
+    function showKanbanAddModal(formElement) {
+        const itemLabel = formElement.dataset.itemLabel || 'item';
+        const itemName = formElement.dataset.itemName || '';
+        const messageEl = document.getElementById('addKanbanConfirmMessage');
+        const safeItemName = escapeHtml(itemName);
+
+        if (messageEl) {
+            messageEl.innerHTML = `Deseja adicionar esta ${itemLabel} ao Kanban?<br>
+            <div class="mt-3 font-bold text-lg text-gray-800">${safeItemName}</div>`;
+        }
+
+        document.getElementById('addKanbanConfirmModal').classList.remove('hidden');
+    }
+
+    function cancelStatusChange() {
+        if (!pendingStatusChange) {
+            return;
+        }
+
+        pendingStatusChange.select.value = pendingStatusChange.previousValue;
+        document.getElementById('moveConfirmModal').classList.add('hidden');
+        pendingStatusChange = null;
+    }
+
+    function confirmStatusChange() {
+        if (!pendingStatusChange) {
+            return;
+        }
+
+        const form = pendingStatusChange.form;
+        document.getElementById('moveConfirmModal').classList.add('hidden');
+        pendingStatusChange = null;
+        form.submit();
+    }
+
+    function cancelKanbanAdd() {
+        if (!pendingKanbanAdd) {
+            return;
+        }
+
+        document.getElementById('addKanbanConfirmModal').classList.add('hidden');
+        pendingKanbanAdd = null;
+    }
+
+    function confirmKanbanAdd() {
+        if (!pendingKanbanAdd) {
+            return;
+        }
+
+        const form = pendingKanbanAdd.form;
+        document.getElementById('addKanbanConfirmModal').classList.add('hidden');
+        pendingKanbanAdd = null;
+        form.submit();
+    }
+
+    function setupStatusChangeSelects() {
+        document.querySelectorAll('.js-status-change-select').forEach(function(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            select.dataset.currentValue = select.value;
+            select.dataset.currentLabel = selectedOption ? selectedOption.text.trim() : '';
+
+            select.addEventListener('change', function() {
+                const nextOption = select.options[select.selectedIndex];
+                const nextValue = select.value;
+                const nextLabel = nextOption ? nextOption.text.trim() : '';
+                const previousValue = select.dataset.currentValue || '';
+                const previousLabel = select.dataset.currentLabel || '';
+
+                if (nextValue === previousValue) {
+                    return;
+                }
+
+                pendingStatusChange = {
+                    form: select.form,
+                    select: select,
+                    previousValue: previousValue
+                };
+
+                showStatusChangeModal(select, previousLabel, nextLabel);
+            });
+        });
+    }
+
+    function setupKanbanAddForms() {
+        document.querySelectorAll('.js-kanban-add-form').forEach(function(form) {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                pendingKanbanAdd = { form: form };
+                showKanbanAddModal(form);
+            });
+        });
+    }
+
+    function renderKanbanNoteImagePreview(form, files) {
+        const previewEl = form.querySelector('.js-kanban-note-images-preview');
+        if (!previewEl) {
+            return;
+        }
+
+        if (!files.length) {
+            previewEl.innerHTML = '';
+            previewEl.classList.add('hidden');
+            return;
+        }
+
+        previewEl.classList.remove('hidden');
+        previewEl.innerHTML = '';
+        previewEl.className = 'mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 js-kanban-note-images-preview';
+
+        files.forEach(function(file, index) {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'relative overflow-hidden rounded border border-gray-200 bg-gray-50';
+
+            const imageEl = document.createElement('img');
+            imageEl.className = 'h-24 w-full object-cover';
+            imageEl.alt = file.name;
+
+            const footerEl = document.createElement('div');
+            footerEl.className = 'flex items-center justify-between gap-2 px-2 py-1';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'truncate text-[10px] text-gray-500';
+            nameEl.textContent = file.name;
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'rounded bg-white px-2 py-0.5 text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50';
+            removeButton.textContent = 'Remover';
+            removeButton.addEventListener('click', function() {
+                removeKanbanNoteImage(form, index);
+            });
+
+            footerEl.appendChild(nameEl);
+            footerEl.appendChild(removeButton);
+            itemEl.appendChild(imageEl);
+            itemEl.appendChild(footerEl);
+            previewEl.appendChild(itemEl);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                imageEl.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function syncKanbanNoteInputFiles(form) {
+        const inputEl = form.querySelector('.js-kanban-note-images-input');
+        if (!inputEl) {
+            return;
+        }
+
+        const dataTransfer = new DataTransfer();
+        (form._kanbanNoteFiles || []).forEach(function(file) {
+            dataTransfer.items.add(file);
+        });
+        inputEl.files = dataTransfer.files;
+        renderKanbanNoteImagePreview(form, form._kanbanNoteFiles || []);
+    }
+
+    function removeKanbanNoteImage(form, fileIndex) {
+        form._kanbanNoteFiles = (form._kanbanNoteFiles || []).filter(function(_file, index) {
+            return index !== fileIndex;
+        });
+        syncKanbanNoteInputFiles(form);
+    }
+
+    function openImagePreviewModal(imageSrc) {
+        const modalEl = document.getElementById('imagePreviewModal');
+        const imageEl = document.getElementById('imagePreviewModalImg');
+        if (!modalEl || !imageEl) {
+            return;
+        }
+        imageEl.src = imageSrc || '';
+        modalEl.classList.remove('hidden');
+        modalEl.classList.add('flex');
+    }
+
+    function closeImagePreviewModal() {
+        const modalEl = document.getElementById('imagePreviewModal');
+        const imageEl = document.getElementById('imagePreviewModalImg');
+        if (imageEl) {
+            imageEl.src = '';
+        }
+        if (modalEl) {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
+        }
+    }
+
+    function setupKanbanNoteForms() {
+        document.querySelectorAll('.js-kanban-note-form').forEach(function(form) {
+            const inputEl = form.querySelector('.js-kanban-note-images-input');
+            if (!inputEl) {
+                return;
+            }
+
+            const maxImages = Number(form.dataset.maxImages || '5');
+            form._kanbanNoteFiles = [];
+
+            inputEl.addEventListener('change', function() {
+                const incomingFiles = Array.from(inputEl.files || []);
+                const combinedFiles = form._kanbanNoteFiles.concat(incomingFiles);
+                form._kanbanNoteFiles = combinedFiles.slice(0, maxImages);
+                syncKanbanNoteInputFiles(form);
+
+                if (combinedFiles.length > maxImages) {
+                    alert(`Voce pode anexar no maximo ${maxImages} imagens por nota.`);
+                }
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        applyThemeStyles();
+        restoreTaskSectionStates();
+        restoreOpenTaskFromUrl();
+        restoreOpenDetailFromUrl();
+        setupStatusChangeSelects();
+        setupKanbanAddForms();
+        setupKanbanNoteForms();
+    });
+  </script>
+
+</body>
+</html>

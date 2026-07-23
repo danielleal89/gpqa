@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPQA - Kanban</title>
+  <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+  body {
+    background-color: #f3f4f6; color: #1f2937;
+  }
+
+  .kanban-board-grid {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .kanban-column {
+    flex: 1 1 0;
+    min-width: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: flex-basis 0.2s ease, max-width 0.2s ease, min-width 0.2s ease;
+    background-color: var(--column-surface, #e5e7eb);
+    border: 1px solid var(--column-border, #cbd5e1);
+  }
+
+  .kanban-column-collapsed {
+    flex: 0 0 2.5rem;
+    min-width: 2.5rem;
+    max-width: 2.5rem;
+    height: auto !important;
+    max-height: none !important;
+    align-self: flex-start;
+  }
+
+  .kanban-column-header {
+    min-height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    background-color: var(--column-surface-strong, #d1d5db);
+    color: var(--column-text, #334155);
+  }
+
+  .kanban-column-collapsed .kanban-col {
+    display: none;
+  }
+
+  .kanban-column-collapsed .kanban-column-header {
+    min-height: auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .kanban-column-collapsed .column-header-main {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+  }
+
+  .kanban-column-collapsed .column-header-title {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .kanban-column-collapsed .column-header-actions {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kanban-column-collapsed .column-count {
+    display: none;
+  }
+
+  .user-avatar {
+    background-color: #9ca3af;
+  }
+
+  .kanban-col {
+    min-height: 500px;
+  }
+
+  .kanban-card {
+    background-color: #ffffff;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    position: relative;
+    border-width: 2px;
+    border-style: solid;
+    border-color: var(--column-accent, var(--primary-color));
+    border-left-color: var(--column-accent, var(--primary-color));
+    border-left-width: 10px;
+    transition-property: transform, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .column-header-title {
+    color: var(--column-text, var(--primary-color));
+  }
+
+  .column-count {
+    background-color: var(--column-pill-bg, #e5e7eb);
+    color: var(--column-pill-text, var(--primary-color));
+    border: 1px solid var(--column-border, #cbd5e1);
+  }
+
+  .kanban-card:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.15);
+  }
+
+  .kanban-card-overdue {
+    background-color: #fef2f2;
+  }
+
+
+
+  .card-ghost {
+    opacity: 0.5; background: #e5e7eb; border: 2px solid #9ca3af;
+  }
+
+  .card-drag {
+    opacity: 1; transform: rotate(2deg); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+
+  .btn-new-task, .btn-primary-action {
+    font-family: var(--default-font);
+    background-color: var(--primary-color);
+    color: white;
+  }
+
+  .btn-column-manager {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    color: var(--primary-color);
+    background-color: white;
+    border: 1px solid #d1d5db;
+    transition: all 150ms;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-column-manager:hover {
+    background-color: #f9fafb;
+    border-color: var(--primary-color);
+  }
+
+  .column-icon-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 150ms;
+  }
+
+  .column-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.65);
+  }
+
+  .column-toggle-icon {
+    transition: transform 0.2s ease;
+  }
+
+  .column-delete-btn {
+    color: #b91c1c;
+  }
+
+  .column-delete-btn:hover {
+    background-color: rgba(254, 226, 226, 0.85);
+  }
+
+  .column-manager-list > * + * {
+    margin-top: 0.75rem;
+  }
+
+  .column-manager-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+  }
+
+  .column-manager-handle {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    cursor: grab;
+    flex-shrink: 0;
+  }
+
+  .column-manager-handle:hover {
+    background-color: #e5e7eb;
+  }
+
+  .column-manager-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .column-manager-form {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .column-manager-form input {
+    flex: 1;
+  }
+
+  .column-color-input {
+    width: 1.75rem;
+    height: 2rem;
+    padding: 0.1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    background: white;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .column-save-btn {
+    color: white;
+    background-color: var(--primary-color);
+  }
+
+  .column-save-btn:hover:not(:disabled) {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+  }
+
+  .column-save-btn:disabled {
+    cursor: not-allowed;
+    background-color: #d1d5db;
+    color: #9ca3af;
+    opacity: 0.7;
+  }
+
+  .btn-new-task:hover, .btn-primary-action:hover {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+  }
+
+  .kanban-header {
+    background-color: white;
+    padding: 0.30rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    flex: none;
+  }
+
+  .kanban-title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+
+  .kanban-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .view-toggle {
+    display: inline-flex;
+    align-items: center;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    padding: 2px;
+    font-size: 0.75rem;
+  }
+  .view-toggle button {
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+    font-weight: 600;
+  }
+  .view-toggle-active {
+    background-color: white;
+    color: var(--primary-color);
+  }
+
+  .table-section {
+    margin-bottom: 1.5rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  .table-section-header {
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    border-bottom: 1px solid #e5e7eb;
+    color: var(--primary-color);
+    background-color: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .table-header-row,
+  .table-data-row {
+    display: grid;
+    grid-template-columns: 2.5fr 1fr 0.8fr 2.2fr;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    align-items: center;
+    font-size: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .table-header-row {
+    background-color: #f3f4f6;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .table-data-row:nth-child(odd) {
+    background-color: #f9fafb;
+  }
+  .table-data-row:nth-child(even) {
+    background-color: white;
+  }
+  .table-section-arrow {
+    width: 1rem;
+    height: 1rem;
+    color: #4b5563;
+    transition: transform 0.2s ease;
+  }
+  .table-section-arrow-rotated {
+    transform: rotate(90deg);
+  }
+  .card-title-text {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    display: block;
+    line-height: 1.2;
+    max-height: 2.4em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .table-title-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .btn-new-task {
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  .input-custom:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 1px var(--primary-color) !important;
+    outline: none !important;
+  }
+  .user-filter-select {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid #d1d5db;
+    background-color: white;
+    color: #374151;
+    line-height: 1rem;
+    font-weight: 600;
+  }
+  </style>
+</head>
+<body class="bg-gray-100 flex flex-col h-screen">
+
+  {% include 'partials/navbar.html' %}
+
+  <div class="kanban-header">
+      <h1 class="kanban-title">
+          {% if archived_view %}
+            Tarefas Arquivadas
+          {% else %}
+            Quadro Kanban
+          {% endif %}
+      </h1>
+      <div class="kanban-actions">
+          <form method="get" action="{{ url_for('kanban.board') }}" class="flex items-center space-x-2 mr-3">
+              <input type="hidden" name="view" id="viewModeInput" value="{{ view_mode or 'board' }}">
+              {% if archived_view %}
+              <input type="hidden" name="archived" value="1">
+              {% endif %}
+              <select name="user_id" class="user-filter-select" onchange="this.form.submit()">
+                  <option value="">Todos</option>
+                  {% for user in users %}
+                  <option value="{{ user.id }}" {% if selected_user_id and selected_user_id == user.id|string %}selected{% endif %}>
+                      {{ user.name }}
+                  </option>
+                  {% endfor %}
+              </select>
+              <select name="project_id" class="user-filter-select max-w-[180px]" onchange="this.form.submit()">
+                  <option value="">Todos os cards</option>
+                  <option value="__no_project__" {% if selected_project_id == '__no_project__' %}selected{% endif %}>Sem projeto</option>
+                  {% for project in all_projects %}
+                  <option value="{{ project.id }}" {% if selected_project_id and selected_project_id == project.id|string %}selected{% endif %}>
+                      {{ project.name }}
+                  </option>
+                  {% endfor %}
+              </select>
+              <select name="sprint_id" class="user-filter-select max-w-[180px]" onchange="this.form.submit()">
+                  <option value="">Todas as sprints</option>
+                  <option value="__no_sprint__" {% if selected_sprint_id == '__no_sprint__' %}selected{% endif %}>Sem sprint</option>
+                  {% for sprint in sprints %}
+                  <option value="{{ sprint.id }}" {% if selected_sprint_id and selected_sprint_id == sprint.id|string %}selected{% endif %}>
+                      {{ sprint.name }}
+                  </option>
+                  {% endfor %}
+              </select>
+          </form>
+          <div class="view-toggle mr-3">
+              <button id="btnBoardView" class="view-toggle-active" type="button" onclick="setViewMode('board')">Quadro</button>
+              <button id="btnTableView" type="button" onclick="setViewMode('table')">Tabela</button>
+          </div>
+          
+          {% if current_user.is_admin %}
+            {% if archived_view %}
+               <a href="{{ url_for('kanban.board') }}" class="mr-2 flex items-center justify-center" title="Voltar ao Quadro">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                   </svg>
+               </a>
+            {% else %}
+               <a href="{{ url_for('kanban.board', archived=1) }}" class="mr-2 flex items-center justify-center" title="Ver Tarefas Arquivadas">
+                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                   </svg>
+               </a>
+            {% endif %}
+          {% endif %}
+
+          {% if current_user.is_admin and not archived_view %}
+          <button type="button" onclick="openSprintManagerModal('progress')" class="btn-column-manager" title="Gerenciar sprints" aria-label="Gerenciar sprints">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 12h5m-7 9h12a2 2 0 002-2V7l-5-5H6a2 2 0 00-2 2v15a2 2 0 002 2z" />
+              </svg>
+          </button>
+          <button type="button" onclick="document.getElementById('columnManagerModal').classList.remove('hidden')" class="btn-column-manager" title="Gerenciar colunas" aria-label="Gerenciar colunas">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M12 16v4" />
+              </svg>
+          </button>
+          {% endif %}
+
+          {% if not archived_view %}
+          <button onclick="openCreateModal('{{ first_column_id }}')" class="btn-new-task">
+              + Nova Tarefa
+          </button>
+          {% endif %}
+      </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex-1 overflow-x-auto overflow-y-auto px-6 pt-6 pb-0">
+    <!-- Visão em colunas (Kanban) -->
+    <div id="boardView" class="kanban-board-grid h-full">
+      {% for col_id, col_data in columns.items() %}
+      <div id="column-wrapper-{{ col_id }}" class="kanban-column flex flex-col rounded-lg shadow-md h-full max-h-full" data-column-id="{{ col_id }}"
+           style="--column-accent: {{ col_data.theme.accent }}; --column-surface: {{ col_data.theme.surface }}; --column-surface-strong: {{ col_data.theme.surface_strong }}; --column-border: {{ col_data.theme.border }}; --column-text: {{ col_data.theme.text }}; --column-pill-bg: {{ col_data.theme.pill_bg }}; --column-pill-text: {{ col_data.theme.pill_text }};">
+        <!-- Column Header -->
+        <div class="kanban-column-header p-3 font-bold rounded-t-lg">
+          <div class="column-header-main flex items-center gap-2 min-w-0">
+            <span class="column-header-title">{{ col_data.name }}</span>
+            <span id="count-{{ col_id }}" class="column-count text-xs px-2 py-1 rounded-full">{{ col_data.cards|length }}</span>
+          </div>
+          <div class="column-header-actions flex items-center gap-1">    
+            <button type="button" class="column-icon-btn" onclick="toggleColumnCollapse('{{ col_id }}')" title="Minimizar coluna">
+              <svg id="toggle-icon-{{ col_id }}" class="column-toggle-icon h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Cards Container -->
+        <div id="col-{{ col_id }}" class="kanban-col flex-1 p-2 space-y-3 overflow-y-auto" data-column-id="{{ col_id }}">
+          {% for card in col_data.cards %}
+          {% set is_assigned = card.assigned_to and card.assigned_to|string == current_user.id|string %}
+          {% set can_move = current_user.is_admin or is_assigned %}
+          <div class="kanban-card {% if card.is_overdue %}kanban-card-overdue{% endif %} {% if not can_move %}undraggable opacity-75{% endif %}" data-card-id="{{ card.id }}">
+            {% if card.priority or card.impedido %}
+            <div class="absolute top-2 right-2 flex items-center gap-1">
+              {% if card.impedido %}
+              <div class="text-sm font-bold leading-none text-red-600" title="{{ card.impedimento or 'Card com impedimento' }}">
+                !
+              </div>
+              {% endif %}
+              {% if card.priority %}
+              <div class="h-3 w-3 rounded-full 
+                  {% if card.priority == 'Alta' %}bg-red-500
+                  {% elif card.priority == 'Media' %}bg-yellow-500
+                  {% else %}bg-green-500{% endif %}" 
+                  title="Prioridade: {{ card.priority }}">
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+            <div class="flex justify-between items-start mb-1">
+                <h3 class="font-semibold flex-1 mr-4 break-words card-title-text" style="color: var(--primary-color);" title="{{ card.title }}">{{ card.title }}</h3>
+            </div>
+            
+
+
+            {% if card.start_date or card.end_date or card.priority or card.impedido %}
+            <div class="text-xs text-gray-500 mb-2 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <!-- 
+                    {% if card.start_date %}
+                    <span title="Início">📅 {{ card.start_date[8:10] }}/{{ card.start_date[5:7] }}/{{ card.start_date[0:4] }}</span>
+                    {% endif %}
+                    
+                    {% if card.end_date %}
+                    <span title="Fim" {% if card.is_overdue %}class="text-red-600 font-bold"{% endif %}>🏁 {{ card.end_date[8:10] }}/{{ card.end_date[5:7] }}/{{ card.end_date[0:4] }}</span>
+                    {% endif %}
+                    -->
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
+              <div class="flex items-center space-x-2">
+                {% if card.user_obj %}
+                <span class="user-avatar w-6 h-6 rounded-full flex items-center justify-center text-xs text-white overflow-hidden" data-user-color="{{ card.user_obj.color }}" title="{{ card.user_obj.name }}">
+                  {% if card.user_obj.photo %}
+                  <img src="data:image/png;base64,{{ card.user_obj.photo }}" alt="{{ card.user_obj.name }}" class="w-full h-full object-cover">
+                  {% else %}
+                  {{ card.user_obj.name[:2].upper() }}
+                  {% endif %}
+                </span>
+                <span class="text-xs text-gray-600 font-medium truncate max-w-[80px]">{{ card.user_obj.name }}</span>
+                {% else %}
+                <span class="text-xs text-gray-400">Sem resp.</span>
+                {% endif %}
+              </div>
+              
+              <div class="flex flex-col items-end gap-1">
+                {% if card.project_ref %}
+                <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200" title="Vinculado ao Projeto">
+                  {{ card.project_name }}
+                </span>
+                {% endif %}
+                {% if card.sprint %}
+                <span class="text-xs px-2 py-0.5 rounded border {% if card.sprint.status == 'active' %}bg-blue-100 text-blue-800 border-blue-200{% elif card.sprint.status == 'completed' %}bg-green-100 text-green-800 border-green-200{% else %}bg-violet-100 text-violet-800 border-violet-200{% endif %}" title="Sprint {{ card.sprint.name }}">
+                  {{ card.sprint.name }}
+                </span>
+                {% endif %}
+              </div>
+            </div>
+            
+            <button 
+              data-id="{{ card.id }}"
+              data-title="{{ card.title }}"
+              data-description="{{ card.description }}"
+              data-notes="{{ card.notes|tojson|forceescape }}"
+              data-notes-count="{{ card.notes_count }}"
+              data-assigned-name="{{ card.user_obj.name if card.user_obj else 'Sem resp.' }}"
+              data-priority="{{ card.priority or '' }}"
+              data-start-date="{{ card.start_date or '' }}"
+              data-end-date="{{ card.end_date or '' }}"
+              data-assigned-to-id="{{ card.assigned_to }}"
+              data-project-name="{{ card.project_name or '' }}"
+              data-task-name="{{ card.task_name or '' }}"
+              data-subtask-name="{{ card.subtask_name or '' }}"
+              data-sprint-id="{{ card.sprint_id or '' }}"
+              data-sprint-name="{{ card.sprint.name if card.sprint else '' }}"
+              data-sprint-status-label="{{ card.sprint.status_label if card.sprint else '' }}"
+              data-impedido="{{ 1 if card.impedido else 0 }}"
+              data-impedimento="{{ card.impedimento or '' }}"
+              data-delivery-date="{{ card.delivery_date or '' }}"
+              onclick="openViewModal(this)" 
+              class="absolute top-0 left-0 w-full h-full opacity-0">
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Visão em tabela -->
+    <div id="tableView" class="hidden max-w-6xl mx-auto">
+      {% for col_id, col_data in columns.items() %}
+      <div class="table-section" data-column-id="{{ col_id }}">
+        <div class="table-section-header" onclick="toggleTableSection('{{ col_id }}')">
+          <span>{{ col_data.name }}</span>
+          <svg id="table-arrow-{{ col_id }}" class="table-section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </div>
+        <div id="table-body-{{ col_id }}">
+          <div class="table-header-row">
+            <div>Tarefa</div>
+            <div>Responsável</div>
+            <div>Período</div>
+            <div>Projeto / Tarefa ligada</div>
+          </div>
+          {% for card in col_data.cards %}
+          <div class="table-data-row cursor-pointer" onclick="openViewModalFromTable(this)"
+               data-id="{{ card.id }}"
+               data-title="{{ card.title }}"
+               data-description="{{ card.description }}"
+               data-notes="{{ card.notes|tojson|forceescape }}"
+               data-notes-count="{{ card.notes_count }}"
+               data-assigned-name="{{ card.user_obj.name if card.user_obj else 'Sem resp.' }}"
+               data-priority="{{ card.priority or '' }}"
+               data-start-date="{{ card.start_date or '' }}"
+               data-end-date="{{ card.end_date or '' }}"
+               data-assigned-to-id="{{ card.assigned_to }}"
+               data-project-name="{{ card.project_name or '' }}"
+               data-task-name="{{ card.task_name or '' }}"
+               data-subtask-name="{{ card.subtask_name or '' }}"
+               data-sprint-id="{{ card.sprint_id or '' }}"
+               data-sprint-name="{{ card.sprint.name if card.sprint else '' }}"
+               data-sprint-status-label="{{ card.sprint.status_label if card.sprint else '' }}"
+               data-impedido="{{ 1 if card.impedido else 0 }}"
+               data-impedimento="{{ card.impedimento or '' }}"
+               data-delivery-date="{{ card.delivery_date or '' }}">
+            <div class="table-title-text">
+              {{ card.title }}
+            </div>
+            <div>
+              {% if card.user_obj %}
+                {{ card.user_obj.name }}
+              {% else %}
+                Sem resp.
+              {% endif %}
+            </div>
+            <div>
+              {% if card.start_date %}{{ card.start_date[8:10] }}/{{ card.start_date[5:7] }}{% endif %}
+              {% if card.start_date and card.end_date %} - {% endif %}
+              {% if card.end_date %}{{ card.end_date[8:10] }}/{{ card.end_date[5:7] }}{% endif %}
+            </div>
+            <div>
+              {% if card.project_ref %}
+                [{{ card.project_name }}]
+                {% if card.task_name %} {{ card.task_name }}{% endif %}
+                {% if card.subtask_name %} › {{ card.subtask_name }}{% endif %}
+                {% if card.sprint %}<span class="block text-[11px] text-gray-500 mt-1">Sprint: {{ card.sprint.name }}</span>{% endif %}
+              {% else %}
+                {% if card.sprint %}
+                <span class="text-[11px] text-gray-500">Sprint: {{ card.sprint.name }}</span>
+                {% else %}
+                -
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
+          <div class="table-data-row">
+            <div>Nenhuma tarefa nesta coluna.</div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Create Modal -->
+  <div id="createModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-96 shadow-xl">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-xl font-bold" style="color: var(--primary-color);">Nova Tarefa</h2>
+        <button onclick="closeModal('createModal')" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <form action="{{ url_for('kanban.add_card') }}" method="POST">
+        <input type="hidden" name="column_id" id="createColumnId" value="{{ first_column_id }}">
+        
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Título</label>
+          <input type="text" name="title" required class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição</label>
+          <textarea name="description" rows="3" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+        
+        <div class="mb-4 grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
+            {% if current_user.is_admin %}
+            <select name="assigned_to" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Selecione...</option>
+              {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input type="hidden" name="assigned_to" value="{{ current_user.id }}">
+            <input type="text" value="{{ current_user.name }}" readonly class="w-full border rounded px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none">
+            {% endif %}
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prioridade</label>
+            <select name="priority" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="Baixa">Baixa</option>
+              <option value="Media" selected>Média</option>
+              <option value="Alta">Alta</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-4 grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Início</label>
+                <input type="date" name="start_date" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Fim</label>
+                <input type="date" name="end_date" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Sprint</label>
+          <select name="sprint_id" id="createSprintId" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Nenhuma</option>
+            {% for sprint in sprints %}
+            <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.status_label }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="mb-4 relative z-50">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vincular Tarefa de Projeto</label>
+            
+            <input type="hidden" name="project_task_ref" id="projectTaskRefInput">
+            
+            <div class="relative" id="customProjectSelect">
+                <!-- Trigger -->
+                <div class="w-full border rounded px-3 py-2 text-left bg-white flex justify-between items-center cursor-pointer hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     onclick="toggleProjectDropdown(event)">
+                    <span id="selectedProjectText" class="text-sm text-gray-700 truncate">Nenhuma</span>
+                    <svg class="w-4 h-4 text-gray-500" id="mainDropdownArrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+
+                <!-- Dropdown -->
+                <div id="projectDropdown" class="hidden absolute left-0 top-full mt-1 w-full bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto z-50">
+                    <div class="p-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-600" onclick="selectProjectTask('', 'Nenhuma')">
+                        Nenhuma
+                    </div>
+                    
+                    {% for project in all_projects if project.show_in_kanban_selector %}
+                    <div class="border-t border-gray-100">
+                        <!-- Project Header -->
+                        <div class="flex items-center p-2 hover:bg-gray-50 cursor-pointer select-none"
+                             onclick="toggleTreeItem('proj-{{ project.id }}', 'arrow-proj-{{ project.id }}')">
+                            <div class="p-1 mr-1 rounded hover:bg-gray-200" 
+                                 onmouseenter="expandTreeItem('proj-{{ project.id }}', 'arrow-proj-{{ project.id }}')">
+                                <svg class="w-4 h-4 text-gray-400 transform transition-transform duration-200" id="arrow-proj-{{ project.id }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                            <span class="text-sm font-bold text-gray-800">{{ project.name }}</span>
+                        </div>
+                        
+                        <!-- Project Tasks -->
+                        <div id="proj-{{ project.id }}" class="hidden ml-2 border-l-2 border-gray-100">
+                            {% for step in project.steps if step.show_in_kanban_selector %}
+                            {% set step_index = step.kanban_step_index %}
+                            <div class="relative">
+                                <div class="flex items-center p-2 hover:bg-blue-50 cursor-pointer select-none group">
+                                    <!-- Arrow for Subtasks -->
+                                    {% if step.visible_substeps %}
+                                    <div class="p-1 mr-1 rounded hover:bg-blue-100"
+                                         onclick="event.stopPropagation(); toggleTreeItem('step-{{ project.id }}-{{ step_index }}', 'arrow-step-{{ project.id }}-{{ step_index }}')"
+                                         onmouseenter="expandTreeItem('step-{{ project.id }}-{{ step_index }}', 'arrow-step-{{ project.id }}-{{ step_index }}')">
+                                        <svg class="w-3 h-3 text-gray-400 transform transition-transform duration-200" id="arrow-step-{{ project.id }}-{{ step_index }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </div>
+                                    {% else %}
+                                    <span class="w-5 h-5 mr-1"></span>
+                                    {% endif %}
+                                    
+                                    <!-- Task Name (Selectable) -->
+                                    <span class="text-sm flex-1 {% if step.kanban_linked %}text-gray-400 cursor-default{% else %}text-gray-700{% endif %}" 
+                                          {% if not step.kanban_linked %}
+                                          onclick="selectProjectTask('{{ project.id }}:{{ step_index }}:-1', '[{{ project.name }}] {{ step.name }}')">
+                                          {% endif %}
+                                        {{ step.name }}
+                                    </span>
+                                </div>
+
+                                <!-- Subtasks -->
+                                {% if step.visible_substeps %}
+                                <div id="step-{{ project.id }}-{{ step_index }}" class="hidden ml-6 border-l border-gray-200">
+                                    {% for substep in step.visible_substeps %}
+                                    <div class="p-2 pl-3 hover:bg-blue-50 cursor-pointer text-sm text-gray-600"
+                                         onclick="selectProjectTask('{{ project.id }}:{{ step_index }}:{{ substep.kanban_substep_index }}', '[{{ project.name }}] {{ substep.name }}')">
+                                        {{ substep.name }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Clique nas setas para expandir.<br> Selecione uma tarefa para vincular.</p>
+        </div>
+        
+        <div class="flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('createModal')" class="px-3 py-1.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+          <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm">Criar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if current_user.is_admin and not archived_view %}
+  <div id="columnManagerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-[28rem] shadow-xl max-w-[95vw]">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" style="color: var(--primary-color);">Personalizar Colunas</h2>
+        <button type="button" onclick="closeModal('columnManagerModal')" class="text-gray-400 hover:text-gray-600 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form action="{{ url_for('kanban.add_column') }}" method="POST" class="mb-5">
+        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nova Coluna</label>
+        <div class="flex gap-2">
+          <input type="text" name="column_name" maxlength="30" required placeholder="Ex: Revisao QA" class="flex-1 border rounded px-3 py-2 input-custom">
+          <input type="color" name="column_color" value="#64748b" class="column-color-input" title="Cor da coluna">
+          <button type="submit" class="px-3 py-2 text-sm font-bold btn-primary-action rounded shadow-sm">Adicionar</button>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Arraste para reordenar, edite nome e cor e salve quando quiser.</p>
+      </form>
+
+      <div id="columnManagerList" class="column-manager-list max-h-80 overflow-y-auto pr-1">
+        {% for col_id, col_data in columns.items() %}
+        <div class="column-manager-item" data-column-id="{{ col_id }}">
+          <div class="column-manager-actions">
+            <button type="button" class="column-manager-handle" title="Arrastar para reordenar">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9h8M8 15h8" />
+              </svg>
+            </button>
+          </div>
+          <form method="POST" action="{{ url_for('kanban.edit_column', column_id=col_id) }}" class="column-manager-form" data-column-edit-form>
+            <input type="text" name="column_name" value="{{ col_data.name }}" maxlength="30" required class="flex-1 border rounded px-3 py-2 input-custom">
+            <input type="color" name="column_color" value="{{ col_data.theme.accent }}" class="column-color-input" title="Cor da coluna">
+            <button type="submit" class="column-icon-btn column-save-btn" title="Salvar nome da coluna" disabled data-column-save-btn>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 4h10l3 3v13H5V5a1 1 0 011-1z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v6h6V4M9 20v-6h6v6" />
+              </svg>
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('kanban.remove_column', column_id=col_id) }}" onsubmit="return confirm('Deseja remover a coluna {{ col_data.name }}? Os cards dela serao movidos para a primeira coluna disponivel.');">
+            <button type="submit" class="column-icon-btn column-delete-btn" title="Remover coluna">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if current_user.is_admin and not archived_view %}
+  <div id="sprintManagerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-[34rem] shadow-xl max-w-[95vw]">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" style="color: var(--primary-color);">Gerenciar Sprints</h2>
+        <button type="button" onclick="closeModal('sprintManagerModal')" class="text-gray-400 hover:text-gray-600 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="mb-4 flex gap-2 rounded-lg bg-gray-100 p-1">
+        <button type="button" id="sprintTabCreateBtn" onclick="setSprintManagerTab('create')" class="flex-1 rounded-md px-3 py-1.5 text-xs font-bold text-gray-600 transition">Nova Sprint</button>
+        <button type="button" id="sprintTabProgressBtn" onclick="setSprintManagerTab('progress')" class="flex-1 rounded-md px-3 py-1.5 text-xs font-bold text-gray-600 transition">Em Andamento</button>
+        <button type="button" id="sprintTabEditBtn" onclick="setSprintManagerTab('edit')" class="flex-1 rounded-md px-3 py-1.5 text-xs font-bold text-gray-600 transition">Editar Sprints</button>
+      </div>
+
+      <div id="sprintTabCreatePanel">
+        <form action="{{ url_for('kanban.add_sprint') }}" method="POST" class="space-y-3">
+          <div class="grid gap-3 md:grid-cols-2">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome</label>
+              <input type="text" name="name" maxlength="60" required placeholder="Ex: Sprint 12" class="w-full border rounded px-3 py-2 text-sm input-custom">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>
+              <select name="status" class="w-full border rounded px-3 py-2 text-sm input-custom">
+                {% for option in sprint_status_options %}
+                <option value="{{ option.value }}">{{ option.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2 md:col-span-2">
+              <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Início</label>
+                <input type="date" name="start_date" class="w-full border rounded px-3 py-2 text-sm input-custom">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Fim</label>
+                <input type="date" name="end_date" class="w-full border rounded px-3 py-2 text-sm input-custom">
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Objetivo / descrição</label>
+            <textarea name="description" rows="2" class="w-full border rounded px-3 py-2 text-sm input-custom" placeholder="O que essa sprint entrega?"></textarea>
+          </div>
+          <div class="flex justify-end">
+            <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm">Adicionar</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="sprintTabProgressPanel" class="hidden">
+        <div class="max-h-[62vh] overflow-y-auto pr-1 space-y-3">
+          {% for sprint in sprints %}
+          <div class="rounded border border-gray-200 bg-white p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-bold text-gray-800">{{ sprint.name }}</h3>
+                <p class="mt-1 text-[11px] text-gray-500">{{ sprint.progress.label }}{% if sprint.progress.hint %} · {{ sprint.progress.hint }}{% endif %}</p>
+              </div>
+              <span class="shrink-0 rounded-full px-2 py-1 text-[11px] font-bold border {% if sprint.status == 'active' %}bg-blue-100 text-blue-800 border-blue-200{% elif sprint.status == 'completed' %}bg-green-100 text-green-800 border-green-200{% else %}bg-violet-100 text-violet-800 border-violet-200{% endif %}">
+                {{ sprint.status_label }}
+              </span>
+            </div>
+            <div class="mt-3">
+              <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
+                  <span>Andamento</span>
+                <span>{{ sprint.progress.percent }}%</span>
+              </div>
+              <div class="h-2 rounded-full bg-gray-200 overflow-hidden">
+                <div class="h-full {{ sprint.progress.bar_class }} sprint-progress-bar" data-progress-percent="{{ sprint.progress.percent }}"></div>
+              </div>
+            </div>
+            <div class="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+              <span>{{ sprint.start_date_display or 'Sem inicio' }}</span>
+              <span>{{ sprint.end_date_display or 'Sem fim' }}</span>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-sm text-gray-500 italic">Nenhuma sprint cadastrada.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div id="sprintTabEditPanel" class="hidden">
+        <div class="max-h-[26rem] overflow-y-auto pr-1 space-y-3 snap-y snap-mandatory">
+          {% for sprint in sprints %}
+          <div class="rounded border border-gray-200 bg-white p-4 snap-start">
+            <form method="POST" action="{{ url_for('kanban.edit_sprint', sprint_id=sprint.id) }}" class="space-y-3" data-sprint-edit-form>
+              <div class="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nome</label>
+                  <input type="text" name="name" value="{{ sprint.name }}" maxlength="60" required class="w-full border rounded px-3 py-2 text-sm input-custom">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status</label>
+                  <select name="status" class="w-full border rounded px-3 py-2 text-sm input-custom">
+                    {% for option in sprint_status_options %}
+                    <option value="{{ option.value }}" {% if sprint.status == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2 md:col-span-2">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Início</label>
+                    <input type="date" name="start_date" value="{{ sprint.start_date or '' }}" class="w-full border rounded px-3 py-2 text-sm input-custom">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Fim</label>
+                    <input type="date" name="end_date" value="{{ sprint.end_date or '' }}" class="w-full border rounded px-3 py-2 text-sm input-custom">
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-500 tracking-wide mb-1">Objetivo / Descrição</label>
+                <textarea name="description" rows="2" class="w-full border rounded px-3 py-2 text-sm input-custom">{{ sprint.description or '' }}</textarea>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <div class="text-xs text-gray-500">
+                  Criada por {{ sprint.created_by_name or 'Nao informado' }} em {{ sprint.created_at_display }}
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="submit" class="column-icon-btn column-delete-btn" title="Excluir sprint" formaction="{{ url_for('kanban.remove_sprint', sprint_id=sprint.id) }}" formnovalidate onclick="return confirm('Deseja remover a sprint {{ sprint.name }}? Os cards vinculados ficarao sem sprint.');">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                  <button type="submit" class="column-icon-btn column-save-btn" title="Salvar sprint" disabled data-sprint-save-btn>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 4h10l3 3v13H5V5a1 1 0 011-1z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v6h6V4M9 20v-6h6v6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+          {% else %}
+          <p class="text-sm text-gray-500 italic">Nenhuma sprint cadastrada.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- View Modal (Summary) -->
+  <div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-4 w-96 shadow-xl relative">
+      <div class="flex justify-between items-start mb-3">
+        <h2 class="text-xl font-bold flex-1 mr-4" id="viewTitle" style="color: var(--primary-color);"></h2>
+        
+        <button onclick="closeModal('viewModal')" class="text-gray-400 hover:text-gray-600 transition" title="Fechar">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+          <!-- Project Info -->
+          <div id="viewProjectSection" class="hidden mb-4 p-3 bg-blue-50 rounded border border-blue-100">
+              <div class="flex flex-col space-y-2">
+                   <div>
+                      <span class="block text-xs font-bold text-blue-600 uppercase tracking-wide mb-1">Projeto</span>
+                      <p id="viewProjectName" class="text-sm font-semibold text-gray-800"></p>
+                   </div>
+                   <div id="viewTaskContainer" class="hidden pl-2 border-l-2 border-blue-200">
+                      <span class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tarefa</span>
+                      <p id="viewTaskName" class="text-sm text-gray-700"></p>
+                   </div>
+                   <div id="viewSubtaskContainer" class="hidden pl-6 border-l-2 border-blue-200">
+                      <span class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Subtarefa</span>
+                      <p id="viewSubtaskName" class="text-sm text-gray-700"></p>
+                   </div>
+              </div>
+          </div>
+
+          <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição</label>
+              <p id="viewDescription" class="text-sm text-gray-700 whitespace-pre-wrap"></p>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+              <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
+                  <p id="viewAssignedTo" class="text-sm text-gray-800 font-medium"></p>
+              </div>
+              <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prioridade</label>
+                  <span id="viewPriority" class="text-xs px-2 py-1 rounded border"></span>
+              </div>
+          </div>
+
+          <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Sprint</label>
+              <p id="viewSprint" class="text-sm text-gray-700"></p>
+          </div>
+          
+          <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Impedimento</label>
+              <p id="viewImpedimento" class="text-sm text-red-700 whitespace-pre-wrap"></p>
+          </div>
+          
+          <div class="grid grid-cols-3 gap-4">
+              <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Início</label>
+                  <p id="viewStartDate" class="text-sm text-gray-600"></p>
+              </div>
+              <div>
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prazo</label>
+                  <p id="viewEndDate" class="text-sm text-gray-600"></p>
+              </div>
+              <div id="viewDeliveryDateContainer" class="hidden">
+                  <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Entregue</label>
+                  <p id="viewDeliveryDate" class="text-sm font-bold text-green-600"></p>
+              </div>
+          </div>
+      </div>
+      
+      <div class="mt-3 flex justify-between items-center">
+        <div class="flex space-x-2">
+            <button id="btnNotes" type="button" class="text-blue-600 hover:text-blue-800 transition-colors" title="Ver notas" onclick="openNotesModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8M8 14h5m-7 7h12a2 2 0 002-2V7l-5-5H6a2 2 0 00-2 2v15a2 2 0 002 2z" />
+                </svg>
+            </button>
+            {% if current_user.is_admin %}
+                {% if archived_view %}
+                    <a id="btnRestore" href="#" class="text-green-600 hover:text-green-800 transition-colors" title="Restaurar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </a>
+                    <a id="btnDelete" href="#" class="text-red-600 hover:text-red-800 transition-colors" onclick="return confirm('Tem certeza que deseja excluir permanentemente?')" title="Excluir Permanentemente">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </a>
+                {% else %}
+                    <a id="btnArchive" href="#" class="text-yellow-600 hover:text-yellow-800 transition-colors" title="Arquivar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                    </a>
+                    <a id="btnDelete" href="#" class="text-red-600 hover:text-red-800 transition-colors" onclick="return confirm('Tem certeza que deseja excluir?')" title="Excluir">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </a>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="flex space-x-2">
+            <button type="button" onclick="closeModal('viewModal')" class="px-3 py-1.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded">Fechar</button>
+            {% if not archived_view %}
+            <button type="button" id="viewEditBtn" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm">Editar</button>
+            {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="notesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-4 w-[27rem] max-w-[calc(100vw-2rem)] shadow-xl">
+      <div class="flex justify-between items-start mb-3">
+        <div>
+          <h2 class="text-xl font-bold" style="color: var(--primary-color);">Notas</h2>
+        </div>
+        <button onclick="closeModal('notesModal')" class="text-gray-400 hover:text-gray-600 transition" title="Fechar">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="notesModalMessage" class="hidden mb-3 rounded border px-3 py-2 text-xs font-medium"></div>
+      <div id="notesModalContent" class="space-y-3 max-h-[42vh] overflow-y-auto pr-1"></div>
+      <form id="notesModalForm" method="POST" enctype="multipart/form-data" class="mt-3 border-t border-gray-100 pt-2">
+        <label class="block text-xs font-bold text-gray-500 tracking-wide mb-1">Nova nota</label>
+        <textarea name="note" id="notesModalTextarea" rows="2" maxlength="500" class="w-full border rounded px-2.5 py-2 text-sm input-custom" placeholder="Digite uma nota para este card"></textarea>
+        <div class="mt-2">
+          <div class="mb-1 flex items-center justify-between gap-2">
+            <label for="notesModalImages" class="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">Imagens</label>
+            <span id="notesModalImagesCount" class="text-[11px] font-semibold text-gray-400">0/5</span>
+          </div>
+          <input type="file" name="images" id="notesModalImages" accept="image/*" multiple class="block w-full text-xs text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:text-gray-700 hover:file:bg-gray-200">
+          <div id="notesModalImagesPreview" class="mt-2 hidden"></div>
+        </div>
+        <div class="mt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('notesModal')" class="px-3 py-1 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded">Fechar</button>
+          <button type="submit" id="notesModalSubmit" class="px-3 py-1 text-xs font-bold btn-primary-action rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>Salvar nota</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="imagePreviewModal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center z-[60]" onclick="closeImagePreviewModal()">
+    <div class="relative flex max-h-[92vh] max-w-[92vw] items-center justify-center p-4" onclick="event.stopPropagation()">
+      <button type="button" onclick="closeImagePreviewModal()" class="absolute right-2 top-2 rounded-full bg-black bg-opacity-55 p-2 text-white hover:bg-opacity-75" title="Fechar">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+      <img id="imagePreviewModalImg" src="" alt="Imagem ampliada" class="max-h-[88vh] max-w-[88vw] rounded-lg object-contain shadow-2xl">
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-4 w-96 shadow-xl">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-xl font-bold" style="color: var(--primary-color);">Edição de Tarefa</h2>
+        <button onclick="closeModal('editModal')" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <form id="editForm" method="POST">
+        <div class="mb-3">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Título</label>
+          <input type="text" name="title" id="editTitle" required class="w-full border rounded px-3 py-2 input-custom">
+        </div>
+        
+        <div class="mb-3">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descrição</label>
+          <textarea name="description" id="editDescription" rows="3" class="w-full border rounded px-3 py-2 input-custom"></textarea>
+        </div>
+        
+        <div class="mb-3 grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
+              <select name="assigned_to" id="editAssignedTo" class="w-full border rounded px-3 py-2 input-custom">
+                <option value="">Selecione...</option>
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prioridade</label>
+                <select name="priority" id="editPriority" class="w-full border rounded px-3 py-2 input-custom">
+                    <option value="Baixa">Baixa</option>
+                    <option value="Media" selected>Média</option>
+                    <option value="Alta">Alta</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Sprint</label>
+          <select name="sprint_id" id="editSprintId" class="w-full border rounded px-3 py-2 input-custom">
+            <option value="">Nenhuma</option>
+            {% for sprint in sprints %}
+            <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.status_label }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <div class="flex items-center mb-2">
+            <input type="checkbox" id="editImpedido" name="impedido" class="mr-2">
+            <label for="editImpedido" class="text-xs font-bold text-gray-500 uppercase tracking-wide">Impedimento</label>
+          </div>
+          <textarea name="impedimento" id="editImpedimento" rows="2" placeholder="Descreva o impedimento (opcional)" class="w-full border rounded px-3 py-2 input-custom"></textarea>
+        </div>
+        
+        <div class="mb-3 grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Início</label>
+                <input type="date" name="start_date" id="editStartDate" class="w-full border rounded px-3 py-2 input-custom">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Fim</label>
+                <input type="date" name="end_date" id="editEndDate" class="w-full border rounded px-3 py-2 input-custom">
+            </div>
+        </div>
+        
+        <div class="flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('editModal')" class="px-3 py-1.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+          <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Move Confirmation Modal -->
+  {% with modal_id='moveConfirmModal', message_id='moveConfirmMessage', cancel_func='cancelMove()', confirm_func='confirmMove()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
+
+  <!-- Permission Error Modal -->
+  {% with modal_id='permissionModal', message_id='permissionMessage', cancel_func='closePermissionModal()', confirm_func='closePermissionModal()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
+
+  <script>
+    let pendingMove = null;
+    const ARCHIVED_VIEW = "{{ 'true' if archived_view else 'false' }}" === 'true';
+    const COLUMN_STATE_KEY = 'kanbanCollapsedColumns';
+    const STORAGE_FILE_URL = "{{ url_for('storage_file') }}";
+    let currentCardId = null;
+    let currentCardNotes = [];
+    let currentCardTitle = '';
+    let notesModalFiles = [];
+    let notesModalMessageTimeout = null;
+    const SELECTED_SPRINT_FILTER = "{{ selected_sprint_id or '' }}";
+
+    function closePermissionModal() {
+        document.getElementById('permissionModal').classList.add('hidden');
+    }
+
+    function buildStorageUrl(path) {
+      return `${STORAGE_FILE_URL}?path=${encodeURIComponent(path || '')}`;
+    }
+
+    function initDragAndDrop() {
+      const cols = document.querySelectorAll('.kanban-col');
+      cols.forEach(col => {
+        new Sortable(col, {
+          group: 'kanban',
+          animation: 150,
+          ghostClass: 'card-ghost',
+          dragClass: 'card-drag',
+          filter: '.undraggable',
+          preventOnFilter: false,
+          onEnd: function (evt) {
+            const itemEl = evt.item;
+            const newColumnId = evt.to.getAttribute('data-column-id');
+            const oldColumnId = evt.from.getAttribute('data-column-id');
+            const cardId = itemEl.getAttribute('data-card-id');
+            
+            if (newColumnId === oldColumnId) return;
+
+            // Restrição: Apenas administradores podem mover cards da coluna "Concluído" (done)
+            const isAdmin = "{{ 'true' if current_user.is_admin else 'false' }}" === 'true';
+            if (oldColumnId === 'done' && !isAdmin) {
+                // alert("Apenas administradores podem mover tarefas concluídas para outra coluna.");
+                const pModal = document.getElementById('permissionModal');
+                const pMsg = document.getElementById('permissionMessage');
+                if (pModal && pMsg) {
+                    pMsg.innerText = "Você não podem mover tarefas concluídas para outra coluna.";
+                    
+                    // Ajustar botões para parecer um alerta
+                    const buttons = pModal.querySelectorAll('button');
+                    if(buttons.length >= 2) {
+                        buttons[0].style.display = 'none'; // Esconder Cancelar
+                        buttons[1].innerText = 'OK';       // Mudar Confirmar para OK
+                    }
+                    
+                    pModal.classList.remove('hidden');
+                }
+
+                // Reverter a mudança visualmente
+                if (evt.oldIndex < evt.from.children.length) {
+                    evt.from.insertBefore(itemEl, evt.from.children[evt.oldIndex]);
+                } else {
+                    evt.from.appendChild(itemEl);
+                }
+                return;
+            }
+
+            // Store move details
+            pendingMove = {
+                evt: evt,
+                itemEl: itemEl,
+                newColumnId: newColumnId,
+                oldColumnId: oldColumnId,
+                cardId: cardId,
+                from: evt.from,
+                to: evt.to,
+                oldIndex: evt.oldIndex
+            };
+
+            // Get column names and update message
+            let oldColName = oldColumnId;
+            let newColName = newColumnId;
+            
+            // Try to get display names from headers
+            try {
+                const oldHeader = evt.from.parentElement.querySelector('span'); // Adjust selector based on actual DOM
+                const newHeader = evt.to.parentElement.querySelector('span');
+                if (oldHeader) oldColName = oldHeader.innerText.trim();
+                if (newHeader) newColName = newHeader.innerText.trim();
+            } catch (e) {
+                console.error('Error getting column names', e);
+            }
+
+            const messageEl = document.getElementById('moveConfirmMessage');
+            if (messageEl) {
+                messageEl.innerHTML = `Deseja mover este card?<br>
+                <div class="mt-3 flex items-center justify-center gap-2 font-bold text-lg text-gray-800">
+                    <span>${oldColName}</span>
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                    <span>${newColName}</span>
+                </div>`;
+            }
+
+            // Show modal
+            document.getElementById('moveConfirmModal').classList.remove('hidden');
+          }
+        });
+      });
+    }
+
+    function getCollapsedColumns() {
+      try {
+        return JSON.parse(localStorage.getItem(COLUMN_STATE_KEY) || '[]');
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function saveCollapsedColumns(columnIds) {
+      localStorage.setItem(COLUMN_STATE_KEY, JSON.stringify(columnIds));
+    }
+
+    function applyColumnCollapseState(columnId, collapsed) {
+      const wrapper = document.getElementById('column-wrapper-' + columnId);
+      const icon = document.getElementById('toggle-icon-' + columnId);
+      if (!wrapper) return;
+
+      wrapper.classList.toggle('kanban-column-collapsed', collapsed);
+      if (icon) {
+        icon.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    }
+
+    function toggleColumnCollapse(columnId) {
+      const collapsedColumns = new Set(getCollapsedColumns());
+      if (collapsedColumns.has(columnId)) {
+        collapsedColumns.delete(columnId);
+        applyColumnCollapseState(columnId, false);
+      } else {
+        collapsedColumns.add(columnId);
+        applyColumnCollapseState(columnId, true);
+      }
+      saveCollapsedColumns(Array.from(collapsedColumns));
+    }
+
+    function restoreCollapsedColumns() {
+      const collapsedColumns = getCollapsedColumns();
+      collapsedColumns.forEach(columnId => applyColumnCollapseState(columnId, true));
+    }
+
+    function initColumnManagerSort() {
+      const list = document.getElementById('columnManagerList');
+      if (!list || list.dataset.sortableInitialized === 'true') return;
+
+      list.dataset.sortableInitialized = 'true';
+      new Sortable(list, {
+        animation: 150,
+        handle: '.column-manager-handle',
+        ghostClass: 'card-ghost',
+        onEnd: function() {
+          const columnIds = Array.from(list.querySelectorAll('.column-manager-item'))
+            .map(item => item.getAttribute('data-column-id'));
+
+          fetch("{{ url_for('kanban.reorder_board_columns') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column_ids: columnIds })
+          }).then(response => {
+            if (response.ok) {
+              applyColumnOrderToViews(columnIds);
+            } else {
+              window.location.reload();
+            }
+          }).catch(() => {
+            window.location.reload();
+          });
+        }
+      });
+    }
+
+    function initColumnNameEditors() {
+      document.querySelectorAll('[data-column-edit-form]').forEach(form => {
+        const input = form.querySelector('input[name="column_name"]');
+        const colorInput = form.querySelector('input[name="column_color"]');
+        const saveButton = form.querySelector('[data-column-save-btn]');
+        if (!input || !colorInput || !saveButton) return;
+
+        const initialValue = input.value;
+        const initialColor = colorInput.value.toLowerCase();
+        const updateButtonState = () => {
+          const sameName = input.value.trim() === initialValue.trim();
+          const sameColor = colorInput.value.toLowerCase() === initialColor;
+          saveButton.disabled = sameName && sameColor;
+        };
+
+        input.addEventListener('input', updateButtonState);
+        colorInput.addEventListener('input', updateButtonState);
+        updateButtonState();
+      });
+    }
+
+    function initSprintEditForms() {
+      document.querySelectorAll('[data-sprint-edit-form]').forEach(form => {
+        const saveButton = form.querySelector('[data-sprint-save-btn]');
+        if (!saveButton) return;
+
+        const fields = Array.from(form.querySelectorAll('input[name], select[name], textarea[name]')).filter(field => field.type !== 'submit');
+        const initialValues = new Map(fields.map(field => [field.name, (field.value || '').trim()]));
+
+        const updateButtonState = () => {
+          const hasChanges = fields.some(field => (field.value || '').trim() !== (initialValues.get(field.name) || ''));
+          saveButton.disabled = !hasChanges;
+        };
+
+        fields.forEach(field => {
+          field.addEventListener('input', updateButtonState);
+          field.addEventListener('change', updateButtonState);
+        });
+
+        updateButtonState();
+      });
+    }
+
+    function applyColumnOrderToViews(columnIds) {
+      const boardView = document.getElementById('boardView');
+      const tableView = document.getElementById('tableView');
+
+      if (boardView) {
+        columnIds.forEach(columnId => {
+          const columnEl = boardView.querySelector(`.kanban-column[data-column-id="${columnId}"]`);
+          if (columnEl) {
+            boardView.appendChild(columnEl);
+          }
+        });
+      }
+
+      if (tableView) {
+        columnIds.forEach(columnId => {
+          const sectionEl = tableView.querySelector(`.table-section[data-column-id="${columnId}"]`);
+          if (sectionEl) {
+            tableView.appendChild(sectionEl);
+          }
+        });
+      }
+    }
+
+    function confirmMove() {
+        if (!pendingMove) return;
+        
+        const { cardId, newColumnId, oldColumnId, itemEl } = pendingMove;
+        
+        fetch("{{ url_for('kanban.move_card') }}", {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ card_id: cardId, new_column_id: newColumnId })
+            })
+            .then(response => {
+              if (response.ok) {
+                  const fromCountEl = document.getElementById('count-' + oldColumnId);
+                  const toCountEl = document.getElementById('count-' + newColumnId);
+
+                  // Update delivery date attribute
+                  const btn = itemEl.querySelector('button');
+                  if (btn) {
+                    if (newColumnId === 'done') {
+                      const today = new Date();
+                      const yyyy = today.getFullYear();
+                      const mm = String(today.getMonth() + 1).padStart(2, '0');
+                      const dd = String(today.getDate()).padStart(2, '0');
+                      const formattedDate = `${yyyy}-${mm}-${dd}`;
+                      btn.setAttribute('data-delivery-date', formattedDate);
+                    } else {
+                      btn.setAttribute('data-delivery-date', '');
+                    }
+                  }
+                  
+                  if (fromCountEl) fromCountEl.innerText = Math.max(0, parseInt(fromCountEl.innerText) - 1);
+                  if (toCountEl) toCountEl.innerText = parseInt(toCountEl.innerText) + 1;
+
+                  const iconContainer = itemEl.querySelector('.status-icon');
+                  const icons = {
+                      'backlog': '<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>',
+                      'todo': '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+                      'doing': '<svg viewBox="0 0 24 24" class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /><path d="M12 2 A10 10 0 0 1 12 22 Z" fill="currentColor" opacity="0.2" stroke="none"/></svg>',
+                      'done': `<img src="{{ url_for("static", filename="img/concluido.png") }}" alt="Concluído" class="w-4 h-4">`
+                  };
+                  
+                  if (iconContainer && icons[newColumnId]) {
+                      iconContainer.innerHTML = icons[newColumnId];
+                  }
+              } else {
+                  console.error('Failed to move card');
+                  cancelMove();
+              }
+            })
+            .catch(err => {
+                console.error('Error moving card:', err);
+                cancelMove();
+            })
+            .finally(() => {
+                document.getElementById('moveConfirmModal').classList.add('hidden');
+                pendingMove = null;
+            });
+    }
+
+    function cancelMove() {
+        if (!pendingMove) return;
+        
+        const { itemEl, from, oldIndex } = pendingMove;
+        
+        // Move back to original position
+        if (oldIndex < from.children.length) {
+            from.insertBefore(itemEl, from.children[oldIndex]);
+        } else {
+            from.appendChild(itemEl);
+        }
+        
+        document.getElementById('moveConfirmModal').classList.add('hidden');
+        pendingMove = null;
+    }
+
+    function setViewMode(mode) {
+      const boardView = document.getElementById('boardView');
+      const tableView = document.getElementById('tableView');
+      const btnBoard = document.getElementById('btnBoardView');
+      const btnTable = document.getElementById('btnTableView');
+      const viewInput = document.getElementById('viewModeInput');
+
+      if (mode === 'board') {
+        boardView.classList.remove('hidden');
+        tableView.classList.add('hidden');
+        btnBoard.classList.add('view-toggle-active');
+        btnTable.classList.remove('view-toggle-active');
+        if (!ARCHIVED_VIEW) initDragAndDrop();
+      } else {
+        boardView.classList.add('hidden');
+        tableView.classList.remove('hidden');
+        btnBoard.classList.remove('view-toggle-active');
+        btnTable.classList.add('view-toggle-active');
+      }
+
+      if (viewInput) {
+        viewInput.value = mode;
+      }
+    }
+
+    function openViewModalFromTable(row) {
+      openViewModal(row);
+    }
+
+    function initSprintProgressBars() {
+      document.querySelectorAll('.sprint-progress-bar[data-progress-percent]').forEach(function(el) {
+        const rawValue = Number(el.getAttribute('data-progress-percent') || '0');
+        const percent = Math.max(0, Math.min(100, rawValue));
+        el.style.width = `${percent}%`;
+      });
+    }
+
+    function setSprintManagerTab(tab) {
+      const createPanel = document.getElementById('sprintTabCreatePanel');
+      const progressPanel = document.getElementById('sprintTabProgressPanel');
+      const editPanel = document.getElementById('sprintTabEditPanel');
+      const createBtn = document.getElementById('sprintTabCreateBtn');
+      const progressBtn = document.getElementById('sprintTabProgressBtn');
+      const editBtn = document.getElementById('sprintTabEditBtn');
+      if (!createPanel || !progressPanel || !editPanel || !createBtn || !progressBtn || !editBtn) return;
+
+      const activeTab = ['create', 'progress', 'edit'].includes(tab) ? tab : 'progress';
+      createPanel.classList.toggle('hidden', activeTab !== 'create');
+      progressPanel.classList.toggle('hidden', activeTab !== 'progress');
+      editPanel.classList.toggle('hidden', activeTab !== 'edit');
+
+      [
+        { btn: createBtn, active: activeTab === 'create' },
+        { btn: progressBtn, active: activeTab === 'progress' },
+        { btn: editBtn, active: activeTab === 'edit' }
+      ].forEach(function(item) {
+        item.btn.classList.toggle('bg-white', item.active);
+        item.btn.classList.toggle('text-gray-800', item.active);
+        item.btn.classList.toggle('shadow-sm', item.active);
+        item.btn.classList.toggle('text-gray-600', !item.active);
+      });
+    }
+
+    function openSprintManagerModal(tab) {
+      setSprintManagerTab(tab || 'edit');
+      document.getElementById('sprintManagerModal').classList.remove('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var initialMode = "{{ view_mode or 'board' }}";
+      if (initialMode === 'table') {
+        setViewMode('table');
+      } else {
+        setViewMode('board');
+      }
+      document.querySelectorAll('.user-avatar[data-user-color]').forEach(function(el) {
+        const c = el.getAttribute('data-user-color');
+        if (c) el.style.backgroundColor = c;
+      });
+      restoreCollapsedColumns();
+      initColumnManagerSort();
+      initColumnNameEditors();
+      initSprintEditForms();
+      initNotesModalForm();
+      initSprintProgressBars();
+      setSprintManagerTab('progress');
+      autoOpenNotesFromUrl();
+    });
+
+    function toggleTableSection(colId) {
+      const body = document.getElementById('table-body-' + colId);
+      const arrow = document.getElementById('table-arrow-' + colId);
+      if (!body) return;
+      body.classList.toggle('hidden');
+      if (arrow) {
+        arrow.classList.toggle('table-section-arrow-rotated');
+      }
+    }
+
+    // Modals
+    function openCreateModal(columnId) {
+      document.getElementById('createColumnId').value = columnId;
+      const sprintSelect = document.getElementById('createSprintId');
+      if (sprintSelect) {
+        sprintSelect.value = SELECTED_SPRINT_FILTER && SELECTED_SPRINT_FILTER !== '__no_sprint__'
+          ? SELECTED_SPRINT_FILTER
+          : '';
+      }
+      document.getElementById('createModal').classList.remove('hidden');
+    }
+
+    function openViewModal(btn) {
+      const id = btn.getAttribute('data-id');
+      const title = btn.getAttribute('data-title');
+      const description = btn.getAttribute('data-description');
+      const assignedName = btn.getAttribute('data-assigned-name');
+      const priority = btn.getAttribute('data-priority');
+      const startDate = btn.getAttribute('data-start-date');
+      const endDate = btn.getAttribute('data-end-date');
+      const assignedToId = btn.getAttribute('data-assigned-to-id');
+      const impedido = btn.getAttribute('data-impedido') === '1';
+      const impedimento = btn.getAttribute('data-impedimento') || '';
+      const deliveryDate = btn.getAttribute('data-delivery-date');
+      
+      const projectName = btn.getAttribute('data-project-name');
+      const taskName = btn.getAttribute('data-task-name');
+      const subtaskName = btn.getAttribute('data-subtask-name');
+      const sprintId = btn.getAttribute('data-sprint-id');
+      const sprintName = btn.getAttribute('data-sprint-name');
+      const sprintStatusLabel = btn.getAttribute('data-sprint-status-label');
+      setCurrentCardContext(btn);
+
+      // Populate View Modal
+      document.getElementById('viewTitle').innerText = title.length > 20 ? title.substring(0, 20) + '...' : title;
+      document.getElementById('viewTitle').title = title; // Show full title on hover
+      document.getElementById('viewDescription').innerText = description || 'Sem descrição';
+      document.getElementById('viewAssignedTo').innerText = assignedName;
+      document.getElementById('viewSprint').innerText = sprintName
+        ? `${sprintName}${sprintStatusLabel ? ` (${sprintStatusLabel})` : ''}`
+        : 'Nenhuma sprint vinculada';
+      const impedimentoEl = document.getElementById('viewImpedimento');
+      if (impedido) {
+        impedimentoEl.innerText = impedimento || 'Impedimento registrado';
+      } else {
+        impedimentoEl.innerText = 'Nenhum impedimento registrado';
+      }
+      
+      // Project Info Logic
+      const projectSection = document.getElementById('viewProjectSection');
+      const taskContainer = document.getElementById('viewTaskContainer');
+      const subtaskContainer = document.getElementById('viewSubtaskContainer');
+      
+      if (projectName && projectName !== 'Desconhecido') {
+          projectSection.classList.remove('hidden');
+          document.getElementById('viewProjectName').innerText = projectName;
+          
+          if (taskName && taskName !== 'None') {
+              taskContainer.classList.remove('hidden');
+              document.getElementById('viewTaskName').innerText = taskName;
+          } else {
+              taskContainer.classList.add('hidden');
+          }
+          
+          if (subtaskName && subtaskName !== 'None') {
+              subtaskContainer.classList.remove('hidden');
+              document.getElementById('viewSubtaskName').innerText = subtaskName;
+          } else {
+              subtaskContainer.classList.add('hidden');
+          }
+      } else {
+          projectSection.classList.add('hidden');
+      }
+      
+      const priorityEl = document.getElementById('viewPriority');
+      priorityEl.innerText = priority || 'Média';
+      // Reset classes
+      priorityEl.className = 'text-xs px-2 py-1 rounded border';
+      if(priority === 'Alta') priorityEl.classList.add('bg-red-100', 'text-red-800', 'border-red-200');
+      else if(priority === 'Baixa') priorityEl.classList.add('bg-green-100', 'text-green-800', 'border-green-200');
+      else priorityEl.classList.add('bg-yellow-100', 'text-yellow-800', 'border-yellow-200');
+      
+      document.getElementById('viewStartDate').innerText = startDate ? formatDate(startDate) : '-';
+      document.getElementById('viewEndDate').innerText = endDate ? formatDate(endDate) : '-';
+
+      const deliveryContainer = document.getElementById('viewDeliveryDateContainer');
+      const deliveryEl = document.getElementById('viewDeliveryDate');
+      if (deliveryDate) {
+        deliveryContainer.classList.remove('hidden');
+        deliveryEl.innerText = formatDate(deliveryDate);
+      } else {
+        deliveryContainer.classList.add('hidden');
+      }
+      
+      const editBtn = document.getElementById('viewEditBtn');
+      if (editBtn) {
+        // Check permissions (Admin or Assigned)
+        // Note: We need current user ID in JS. Let's assume it's passed or available.
+        // A better way is to pass 'can_edit' data attribute to the card element and read it here.
+        // Or simply check against a global variable.
+        const currentUserId = "{{ current_user.id }}";
+        const isAdmin = "{{ 'true' if current_user.is_admin else 'false' }}" === 'true';
+        
+        if (isAdmin || assignedToId === currentUserId) {
+            editBtn.classList.remove('hidden');
+            editBtn.onclick = function() {
+                closeModal('viewModal');
+                openEditModal(id, title, description, assignedToId, priority, startDate, endDate, impedido ? 1 : 0, impedimento, sprintId);
+            };
+        } else {
+            editBtn.classList.add('hidden');
+        }
+      }
+      
+      // Setup Archive/Restore/Delete Buttons
+      const btnArchive = document.getElementById('btnArchive');
+      if (btnArchive) {
+          btnArchive.href = "{{ url_for('kanban.archive_card_route', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', id);
+      }
+      
+      const btnRestore = document.getElementById('btnRestore');
+      if (btnRestore) {
+          btnRestore.href = "{{ url_for('kanban.unarchive_card_route', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', id);
+      }
+      
+      const btnDelete = document.getElementById('btnDelete');
+       if (btnDelete) {
+           let deleteUrl = "{{ url_for('kanban.remove_card', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', id);
+           if (ARCHIVED_VIEW) deleteUrl += "?redirect_archived=1";
+           btnDelete.href = deleteUrl;
+       }
+      
+      document.getElementById('viewModal').classList.remove('hidden');
+    }
+
+    function openNotesModal() {
+      const content = document.getElementById('notesModalContent');
+      const form = document.getElementById('notesModalForm');
+      const messageEl = document.getElementById('notesModalMessage');
+      const textarea = document.getElementById('notesModalTextarea');
+      const imagesInput = document.getElementById('notesModalImages');
+      if (!content || !form || !messageEl) return;
+
+      content.innerHTML = '';
+      form.action = "{{ url_for('kanban.add_card_note_route', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', currentCardId || '');
+      if (textarea) {
+        textarea.value = '';
+      }
+      notesModalFiles = [];
+      syncNotesModalInputFiles();
+      updateNotesModalSubmitState();
+      renderNotesModalMessage();
+
+      if (!currentCardNotes.length) {
+        content.innerHTML = '<p class="text-sm text-gray-500 italic">Nenhuma nota cadastrada para este card.</p>';
+      } else {
+        currentCardNotes.forEach((note, index) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'rounded-lg border border-gray-200 bg-gray-50 px-3 py-3';
+
+          const images = Array.isArray(note.images) ? note.images : [];
+          const imagesHtml = images.length
+            ? `<div class="mt-3 grid grid-cols-3 gap-2">${images.map((imagePath) => `
+                <button type="button" class="block overflow-hidden rounded border border-gray-200 bg-white" onclick="openImagePreviewModal('${buildStorageUrl(imagePath)}')">
+                  <img src="${buildStorageUrl(imagePath)}" alt="Imagem da anotação" class="h-16 w-full object-cover">
+                </button>
+              `).join('')}</div>`
+            : '';
+
+          wrapper.innerHTML = `
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <span class="text-[11px] text-gray-400">${escapeHtml(note.created_by_name || 'Nao informado')}</span>
+              <span class="text-xs text-gray-400">${escapeHtml(note.created_at_display || '')}</span>
+            </div>
+            <p class="text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(note.note || '')}</p>
+            ${imagesHtml}
+          `;
+          content.appendChild(wrapper);
+        });
+      }
+
+      document.getElementById('notesModal').classList.remove('hidden');
+    }
+
+    function setCurrentCardContext(btn) {
+      currentCardId = btn.getAttribute('data-id');
+      currentCardTitle = btn.getAttribute('data-title') || '';
+      const notesRaw = btn.getAttribute('data-notes') || '[]';
+      try {
+        currentCardNotes = JSON.parse(notesRaw);
+      } catch (error) {
+        console.error('Erro ao carregar as notas do card', error);
+        currentCardNotes = [];
+      }
+    }
+
+    function renderNotesModalMessage() {
+      const messageEl = document.getElementById('notesModalMessage');
+      if (!messageEl) return;
+      if (notesModalMessageTimeout) {
+        clearTimeout(notesModalMessageTimeout);
+        notesModalMessageTimeout = null;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const noteStatus = params.get('note_status');
+      const openNotesCard = params.get('open_notes_card');
+
+      if (!noteStatus || !openNotesCard || String(openNotesCard) !== String(currentCardId)) {
+        messageEl.className = 'hidden mb-3 rounded border px-3 py-2 text-xs font-medium';
+        messageEl.textContent = '';
+        return;
+      }
+
+      const statusMessages = {
+        duplicate: 'Esta nota já existe para este card.',
+        limit_reached: 'Este card já possui 10 notas salvas.',
+        images_limit: 'Voce pode anexar no maximo 5 imagens por nota.',
+        empty: 'Digite uma nota antes de salvar.',
+        missing_card: 'Não foi possível localizar este card.'
+      };
+
+      if (noteStatus === 'created') {
+        messageEl.className = 'mb-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700';
+        messageEl.textContent = 'Nota salva com sucesso.';
+        notesModalMessageTimeout = setTimeout(function() {
+          messageEl.className = 'hidden mb-3 rounded border px-3 py-2 text-xs font-medium';
+          messageEl.textContent = '';
+          notesModalMessageTimeout = null;
+        }, 3000);
+        return;
+      }
+
+      messageEl.className = 'mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700';
+      messageEl.textContent = statusMessages[noteStatus] || 'Não foi possível salvar a nota.';
+    }
+
+    function autoOpenNotesFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const cardId = params.get('open_notes_card');
+      if (!cardId) return;
+
+      const trigger = document.querySelector(`[data-id="${cardId}"][data-notes]`);
+      if (!trigger) return;
+
+      setCurrentCardContext(trigger);
+      openNotesModal();
+    }
+
+    function initNotesModalForm() {
+      const form = document.getElementById('notesModalForm');
+      const textarea = document.getElementById('notesModalTextarea');
+      const inputEl = document.getElementById('notesModalImages');
+      if (!textarea) return;
+      textarea.addEventListener('input', updateNotesModalSubmitState);
+      if (form && inputEl) {
+        inputEl.addEventListener('change', function() {
+          const maxImages = 5;
+          const incomingFiles = Array.from(inputEl.files || []);
+          const combinedFiles = notesModalFiles.concat(incomingFiles);
+          notesModalFiles = combinedFiles.slice(0, maxImages);
+          syncNotesModalInputFiles();
+
+          if (combinedFiles.length > maxImages) {
+            alert(`Voce pode anexar no maximo ${maxImages} imagens por nota.`);
+          }
+        });
+      }
+      updateNotesModalSubmitState();
+      syncNotesModalInputFiles();
+    }
+
+    function updateNotesModalSubmitState() {
+      const textarea = document.getElementById('notesModalTextarea');
+      const submitBtn = document.getElementById('notesModalSubmit');
+      if (!textarea || !submitBtn) return;
+      submitBtn.disabled = !textarea.value.trim();
+    }
+
+    function renderNotesModalImagePreview(files) {
+      const previewEl = document.getElementById('notesModalImagesPreview');
+      if (!previewEl) return;
+
+      if (!files.length) {
+        previewEl.innerHTML = '';
+        previewEl.classList.add('hidden');
+        return;
+      }
+
+      previewEl.classList.remove('hidden');
+      previewEl.innerHTML = '';
+      previewEl.className = 'mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3';
+
+      files.forEach(function(file, index) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'group relative overflow-hidden rounded border border-gray-200 bg-gray-50';
+
+        const imageEl = document.createElement('img');
+        imageEl.className = 'h-16 w-full object-cover';
+        imageEl.alt = file.name;
+
+        const overlayEl = document.createElement('div');
+        overlayEl.className = 'absolute inset-0 flex items-center justify-center bg-black bg-opacity-45 opacity-0 transition-opacity group-hover:opacity-100';
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'rounded border border-red-200 bg-white px-2 py-1 text-[10px] font-semibold text-red-600 shadow-sm hover:bg-red-50';
+        removeButton.textContent = 'Remover';
+        removeButton.addEventListener('click', function() {
+          removeNotesModalImage(index);
+        });
+
+        itemEl.appendChild(imageEl);
+        overlayEl.appendChild(removeButton);
+        itemEl.appendChild(overlayEl);
+        previewEl.appendChild(itemEl);
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          imageEl.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function syncNotesModalInputFiles() {
+      const inputEl = document.getElementById('notesModalImages');
+      const countEl = document.getElementById('notesModalImagesCount');
+      if (!inputEl) return;
+
+      const dataTransfer = new DataTransfer();
+      notesModalFiles.forEach(function(file) {
+        dataTransfer.items.add(file);
+      });
+      inputEl.files = dataTransfer.files;
+      inputEl.disabled = notesModalFiles.length >= 5;
+      if (countEl) {
+        countEl.textContent = `${notesModalFiles.length}/5`;
+        countEl.className = notesModalFiles.length >= 5
+          ? 'text-[11px] font-semibold text-amber-500'
+          : 'text-[11px] font-semibold text-gray-400';
+      }
+      renderNotesModalImagePreview(notesModalFiles);
+    }
+
+    function removeNotesModalImage(fileIndex) {
+      notesModalFiles = notesModalFiles.filter(function(_file, index) {
+        return index !== fileIndex;
+      });
+      syncNotesModalInputFiles();
+    }
+
+    function openImagePreviewModal(imageSrc) {
+      const modalEl = document.getElementById('imagePreviewModal');
+      const imageEl = document.getElementById('imagePreviewModalImg');
+      if (!modalEl || !imageEl) return;
+      imageEl.src = imageSrc || '';
+      modalEl.classList.remove('hidden');
+    }
+
+    function closeImagePreviewModal() {
+      const modalEl = document.getElementById('imagePreviewModal');
+      const imageEl = document.getElementById('imagePreviewModalImg');
+      if (imageEl) {
+        imageEl.src = '';
+      }
+      if (modalEl) {
+        modalEl.classList.add('hidden');
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function encodeURIComponentPath(path) {
+      return String(path || '')
+        .split('/')
+        .map(segment => encodeURIComponent(segment))
+        .join('/');
+    }
+
+    function formatDate(dateStr) {
+      if(!dateStr) return '';
+      // Assumes YYYY-MM-DD
+      const parts = dateStr.split('-');
+      if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateStr;
+    }
+    
+    function openEditModal(id, title, description, assignedTo, priority, startDate, endDate, impedido, impedimento, sprintId) {
+      document.getElementById('editForm').action = "{{ url_for('kanban.edit_card', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', id);
+      document.getElementById('editTitle').value = title;
+      document.getElementById('editDescription').value = description;
+      document.getElementById('editAssignedTo').value = assignedTo;
+      if(priority) document.getElementById('editPriority').value = priority;
+      if(startDate) document.getElementById('editStartDate').value = startDate;
+      if(endDate) document.getElementById('editEndDate').value = endDate;
+      document.getElementById('editSprintId').value = sprintId || '';
+      document.getElementById('editImpedido').checked = !!impedido;
+      document.getElementById('editImpedimento').value = impedimento || '';
+      
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      if (modalId === 'notesModal') {
+        notesModalFiles = [];
+        syncNotesModalInputFiles();
+      }
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    // Custom Tree Select Logic
+    function toggleProjectDropdown(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('projectDropdown');
+        dropdown.classList.toggle('hidden');
+    }
+
+    function toggleTreeItem(targetId, arrowId) {
+        const target = document.getElementById(targetId);
+        const arrow = document.getElementById(arrowId);
+        if (target) {
+            target.classList.toggle('hidden');
+            if (arrow) {
+                if (target.classList.contains('hidden')) {
+                    arrow.classList.remove('rotate-90');
+                } else {
+                    arrow.classList.add('rotate-90');
+                }
+            }
+        }
+    }
+
+    function expandTreeItem(targetId, arrowId) {
+        const target = document.getElementById(targetId);
+        const arrow = document.getElementById(arrowId);
+        if (target && target.classList.contains('hidden')) {
+            target.classList.remove('hidden');
+            if (arrow) arrow.classList.add('rotate-90');
+        }
+    }
+
+    function selectProjectTask(value, text) {
+        document.getElementById('projectTaskRefInput').value = value;
+        document.getElementById('selectedProjectText').innerText = text;
+        document.getElementById('projectDropdown').classList.add('hidden');
+        
+        // Auto-fill title
+        if (value && text !== 'Nenhuma') {
+            // Remove text inside brackets (usually project name) and trim whitespace
+            let cleanText = text.replace(/^\[.*?\]\s*/, '');
+            document.querySelector('input[name="title"]').value = cleanText;
+        }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('projectDropdown');
+        const trigger = document.getElementById('customProjectSelect');
+        if (dropdown && !dropdown.classList.contains('hidden')) {
+            if (!trigger.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        }
+    });
+  </script>
+</body>
+</html>

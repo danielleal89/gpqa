@@ -1,0 +1,9 @@
+<div id="{{ modal_id }}" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg p-6 w-80 shadow-xl">
+    <div id="{{ message_id }}" class="mb-2 text-center font-bold" style="color: var(--primary-color);"></div>
+    <div class="flex justify-center space-x-2">
+      <button type="button" onclick="{{ cancel_func }}" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+      <button type="button" onclick="{{ confirm_func }}" class="px-4 py-2 text-sm font-bold btn-primary-action rounded shadow-sm">Confirmar</button>
+    </div>
+  </div>
+</div>

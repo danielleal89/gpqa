@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPQA</title>
+    <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .text-primary { color: var(--primary-color); }
+        .btn-primary { 
+            background-color: var(--primary-color); 
+            color: white;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover { 
+            background-color: var(--secondary-color); 
+            color: var(--primary-color);
+        }
+        .focus-primary:focus {
+            border-color: var(--primary-color);
+            --tw-ring-color: var(--primary-color);
+            --tw-ring-opacity: 0.5;
+            box-shadow: 0 0 0 3px rgba(0, 56, 87, 0.2); /* Approximation of ring */
+            outline: none;
+        }
+        /* Custom Checkbox Style */
+        input[type="checkbox"]:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen" style="background-image: url('{{ url_for('static', filename='img/bb-background.png') }}'); background-size: cover; background-position: center; background-repeat: no-repeat;">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md border-t-4 border-[#003857]">
+        <h2 class="text-2xl font-bold mb-6 text-center text-primary">Gestão de Projetos - QA</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              {% if category == 'danger' %}
+                <div class="flash-message mb-4 p-3 rounded bg-red-100 text-red-700">
+                  {{ message }}
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('auth.login') }}">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="key">Chave</label>
+                <input type="text" name="key" id="key" required maxlength="8"
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus-primary"
+                    placeholder="Sua Chave (Ex: c1234567)"
+                    value="{{ request.cookies.get('remember_key') if request.cookies.get('remember_key') else '' }}">
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Senha</label>
+                <div class="relative">
+                    <input type="password" name="password" id="password" required
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus-primary"
+                        placeholder="********"
+                        value="{{ request.cookies.get('remember_password') if request.cookies.get('remember_password') else '' }}">
+                    <button type="button" onclick="togglePassword()" class="absolute inset-y-0 right-0 px-3 py-2 text-gray-600 mb-3 hover:text-gray-800 focus:outline-none">
+                        <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <svg id="eye-slash-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 hidden">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mb-6 flex items-center justify-between">
+                <div class="flex items-center">
+                    <input id="remember" type="checkbox" name="remember" class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-[#003857]"
+                    {{ 'checked' if request.cookies.get('remember_key') and request.cookies.get('remember_password') else '' }}>
+                    <label for="remember" class="ml-2 text-sm font-medium text-gray-900 cursor-pointer">Lembrar-me</label>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <button class="btn-primary font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full" type="submit">
+                    Entrar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Auto-hide flash messages after 3 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const flashMessages = document.querySelectorAll('.flash-message');
+                flashMessages.forEach(function(msg) {
+                    msg.style.transition = 'opacity 0.5s ease';
+                    msg.style.opacity = '0';
+                    setTimeout(function() {
+                        msg.remove();
+                    }, 500);
+                });
+            }, 3000);
+        });
+
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eye-icon');
+            const eyeSlashIcon = document.getElementById('eye-slash-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.add('hidden');
+                eyeSlashIcon.classList.remove('hidden');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('hidden');
+                eyeSlashIcon.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
