@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user
 import json
 from werkzeug.utils import secure_filename
@@ -12,11 +12,16 @@ from .models import (
     load_projects, create_project, get_project, update_project_step,
     update_project_status, update_project_substep, update_substep_details,
     add_project_substep, add_project_step, update_project_step_name,
-    update_project_substep_name,
+    update_project_substep_name, update_project_name, update_project_step_order,
+    delete_project_step,
     get_status_columns, get_project_status_options,
     create_project_step_kanban_card, create_project_substep_kanban_card,
     add_step_kanban_note, add_substep_kanban_note, add_project_documentation, delete_project_documentation
 )
+try:
+    from ..kanban.models import get_board_data, get_sprints
+except (ImportError, ValueError):
+    from kanban.models import get_board_data, get_sprints  # type: ignore
 
 # Configuração para uploads
 UPLOAD_FOLDER = 'static/uploads/projects'
@@ -43,6 +48,10 @@ def allowed_documentation_image(filename):
 
 def _is_admin_user():
     return bool(getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False))
+
+
+def _is_async_request():
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 
 def _can_add_substep_note(project, step_index, substep_index):
@@ -75,14 +84,208 @@ def _can_add_step_note(project, step_index):
     return str(kanban_card.get('assigned_to_id') or '') == str(getattr(current_user, 'id', ''))
 
 
+def _build_project_sprint_overview(project_id):
+    sprints = get_sprints()
+    board_data = get_board_data(sprints=sprints)
+    sprint_lookup = {int(sprint['id']): sprint for sprint in sprints}
+    project_id_str = str(project_id)
+
+    sprint_entries = {}
+    sprint_order = {}
+    for index, sprint in enumerate(sprints):
+        sprint_order[int(sprint['id'])] = index
+        if str(sprint.get('project_id') or '') == project_id_str:
+            sprint_entries[int(sprint['id'])] = {
+                **dict(sprint),
+                'total_cards': 0,
+                'done_cards': 0,
+                'task_progress_percent': 0
+            }
+
+    for card in board_data.get('cards', []):
+        project_ref = card.get('project_ref') or {}
+        if str(project_ref.get('project_id') or '') != project_id_str:
+            continue
+
+        sprint_id = card.get('sprint_id')
+        if not sprint_id or sprint_id not in sprint_lookup:
+            continue
+
+        if sprint_id not in sprint_entries:
+            sprint_entries[sprint_id] = {
+                **dict(sprint_lookup[sprint_id]),
+                'total_cards': 0,
+                'done_cards': 0,
+                'task_progress_percent': 0
+            }
+
+        entry = sprint_entries[sprint_id]
+        is_done = card.get('column_id') == 'done'
+        entry['total_cards'] += 1
+        if is_done:
+            entry['done_cards'] += 1
+
+    sprint_list = list(sprint_entries.values())
+    for sprint in sprint_list:
+        total_cards = sprint['total_cards']
+        sprint['task_progress_percent'] = round((sprint['done_cards'] / total_cards) * 100) if total_cards else 0
+
+    sprint_list.sort(
+        key=lambda sprint: (
+            sprint_order.get(int(sprint['id']), 9999),
+            sprint.get('start_date') or '9999-12-31',
+            -int(sprint['id'])
+        )
+    )
+    return sprint_list
+
+
+def _parse_project_date(value):
+    clean_value = (value or '').strip()
+    if not clean_value:
+        return None
+
+    for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d/%m/%Y', '%d/%m/%Y %H:%M'):
+        try:
+            return datetime.strptime(clean_value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _build_project_dashboard(project, project_sprints):
+    steps = project.get('steps', [])
+    substeps = [substep for step in steps for substep in step.get('substeps', [])]
+    all_items = steps + substeps
+    today = datetime.now().date()
+    status_columns = get_status_columns()
+
+    task_total = len(steps)
+    task_done = sum(1 for step in steps if step.get('status') == 'done')
+    subtask_total = len(substeps)
+    subtask_done = sum(1 for substep in substeps if substep.get('status') == 'done')
+    items_total = len(all_items)
+    items_done = sum(1 for item in all_items if item.get('status') == 'done')
+    linked_cards = [
+        item.get('kanban_card')
+        for item in all_items
+        if item.get('kanban_card')
+    ]
+    linked_cards = [card for card in linked_cards if card]
+    linked_cards_total = len(linked_cards)
+    linked_cards_done = sum(1 for card in linked_cards if card.get('coluna') == 'done')
+    linked_cards_impeded = sum(1 for card in linked_cards if card.get('impedido'))
+    linked_cards_without_owner = sum(1 for card in linked_cards if not card.get('assigned_to_id'))
+
+    overdue_cards = 0
+    next_due_card = None
+    next_due_date = None
+    for card in linked_cards:
+        end_date = _parse_project_date(card.get('data_fim'))
+        is_done = card.get('coluna') == 'done'
+        if end_date and not is_done:
+            if end_date.date() < today:
+                overdue_cards += 1
+            if next_due_date is None or end_date.date() < next_due_date:
+                next_due_date = end_date.date()
+                next_due_card = card
+
+    status_task_counts = {column['name']: 0 for column in status_columns}
+    status_subtask_counts = {column['name']: 0 for column in status_columns}
+    for step in steps:
+        status_task_counts[step.get('status_name') or 'Sem status'] = status_task_counts.get(step.get('status_name') or 'Sem status', 0) + 1
+    for substep in substeps:
+        status_subtask_counts[substep.get('status_name') or 'Sem status'] = status_subtask_counts.get(substep.get('status_name') or 'Sem status', 0) + 1
+
+    sprint_status_counts = {
+        'Planejada': sum(1 for sprint in project_sprints if sprint.get('status') == 'planned'),
+        'Ativa': sum(1 for sprint in project_sprints if sprint.get('status') == 'active'),
+        'Concluida': sum(1 for sprint in project_sprints if sprint.get('status') == 'completed'),
+    }
+
+    attention_items = []
+    if overdue_cards:
+        attention_items.append(f'{overdue_cards} card(s) do projeto estao atrasados no Kanban.')
+    if linked_cards_impeded:
+        attention_items.append(f'{linked_cards_impeded} card(s) estao marcados com impedimento.')
+    missing_kanban_cards = items_total - linked_cards_total
+    if missing_kanban_cards:
+        attention_items.append(f'{missing_kanban_cards} item(ns) do projeto ainda nao foram vinculados ao Kanban.')
+    if not attention_items:
+        attention_items.append('Nenhum alerta principal no momento.')
+
+    task_status_breakdown = [
+        {
+            'label': column['name'],
+            'count': status_task_counts.get(column['name'], 0),
+            'percent': round((status_task_counts.get(column['name'], 0) / task_total) * 100) if task_total else 0,
+        }
+        for column in status_columns
+    ]
+    subtask_status_breakdown = [
+        {
+            'label': column['name'],
+            'count': status_subtask_counts.get(column['name'], 0),
+            'percent': round((status_subtask_counts.get(column['name'], 0) / subtask_total) * 100) if subtask_total else 0,
+        }
+        for column in status_columns
+    ]
+    sprint_status_breakdown = [
+        {
+            'label': label,
+            'count': count,
+            'percent': round((count / len(project_sprints)) * 100) if project_sprints else 0,
+        }
+        for label, count in sprint_status_counts.items()
+    ]
+
+    return {
+        'task_total': task_total,
+        'task_done': task_done,
+        'task_progress_percent': round((task_done / task_total) * 100) if task_total else 0,
+        'subtask_total': subtask_total,
+        'subtask_done': subtask_done,
+        'subtask_progress_percent': round((subtask_done / subtask_total) * 100) if subtask_total else 0,
+        'items_total': items_total,
+        'items_done': items_done,
+        'overall_progress_percent': round((items_done / items_total) * 100) if items_total else 0,
+        'documentation_total': len(project.get('documentation_items', [])),
+        'linked_cards_total': linked_cards_total,
+        'linked_cards_done': linked_cards_done,
+        'linked_cards_progress_percent': round((linked_cards_done / linked_cards_total) * 100) if linked_cards_total else 0,
+        'linked_cards_impeded': linked_cards_impeded,
+        'linked_cards_without_owner': linked_cards_without_owner,
+        'overdue_cards': overdue_cards,
+        'sprints_total': len(project_sprints),
+        'sprint_status_counts': sprint_status_counts,
+        'active_sprints': [sprint for sprint in project_sprints if sprint.get('status') == 'active'],
+        'task_status_counts': status_task_counts,
+        'subtask_status_counts': status_subtask_counts,
+        'task_status_breakdown': task_status_breakdown,
+        'subtask_status_breakdown': subtask_status_breakdown,
+        'sprint_status_breakdown': sprint_status_breakdown,
+        'attention_items': attention_items,
+        'next_due_card': next_due_card,
+        'next_due_date_display': next_due_date.strftime('%d/%m/%Y') if next_due_date else '',
+    }
+
+
 @projects_bp.route('/')
 def index():
     projects = load_projects()
-    return render_template('projects/index.html', projects=projects)
+    return render_template(
+        'projects/index.html',
+        projects=projects,
+        can_create_project=_is_admin_user()
+    )
 
 
 @projects_bp.route('/create', methods=['GET', 'POST'])
 def create():
+    if not _is_admin_user():
+        flash('Apenas administradores podem criar novos projetos.', 'danger')
+        return redirect(url_for('projects.index'))
+
     if request.method == 'POST':
         name = request.form.get('name')
         description = request.form.get('description')
@@ -117,9 +320,11 @@ def detail(project_id):
     if not project:
         return "Project not found", 404
 
+    project_sprints = _build_project_sprint_overview(project_id)
     can_manage_project = _is_admin_user()
     project['can_manage_project'] = can_manage_project
     for step in project.get('steps', []):
+        step['can_edit_name'] = can_manage_project
         step['can_add_substep'] = can_manage_project
         step['can_add_to_kanban'] = can_manage_project and not step.get('has_kanban_card')
         can_add_step_note = bool(
@@ -138,6 +343,7 @@ def detail(project_id):
         )
 
         for substep in step.get('substeps', []):
+            substep['can_edit_name'] = can_manage_project
             can_add_note = bool(
                 substep.get('has_kanban_card')
                 and substep.get('kanban_notes_count', 0) < 10
@@ -154,9 +360,13 @@ def detail(project_id):
                 and not substep['kanban_note_limit_reached']
             )
 
+    project_dashboard = _build_project_dashboard(project, project_sprints)
+
     return render_template(
         'projects/detail.html',
         project=project,
+        project_sprints=project_sprints,
+        project_dashboard=project_dashboard,
         status_columns=get_status_columns(),
         project_status_options=get_project_status_options(),
         open_description=request.args.get('open_description') == '1'
@@ -270,11 +480,93 @@ def update_step(project_id, step_index):
     return redirect(url_for('projects.detail', project_id=project_id))
 
 
+@projects_bp.route('/<project_id>/update_name', methods=['POST'])
+def update_name(project_id):
+    if not _is_admin_user():
+        flash('Apenas administradores podem alterar o nome do projeto.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id))
+
+    project_name = request.form.get('project_name')
+    if project_name:
+        update_project_name(project_id, project_name)
+    return redirect(url_for('projects.detail', project_id=project_id))
+
+
 @projects_bp.route('/<project_id>/update_step_name/<int:step_index>', methods=['POST'])
 def update_step_name(project_id, step_index):
+    if not _is_admin_user():
+        flash('Apenas administradores podem alterar o nome das tarefas.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id))
+
     step_name = request.form.get('step_name')
     if step_name:
         update_project_step_name(project_id, step_index, step_name)
+    return redirect(url_for('projects.detail', project_id=project_id))
+
+
+@projects_bp.route('/<project_id>/update_step_order/<int:step_index>', methods=['POST'])
+def update_step_order(project_id, step_index):
+    if not _is_admin_user():
+        flash('Apenas administradores podem alterar a ordem das tarefas.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id))
+
+    target_order_input = request.form.get('target_order')
+    reorder_mode = request.form.get('reorder_mode') or 'insert'
+    redirect_kwargs = {'project_id': project_id}
+    try:
+        target_order = max(int(target_order_input or ''), 1) - 1
+    except ValueError:
+        flash('Informe um numero de ordem valido para a tarefa.', 'danger')
+        return redirect(url_for('projects.detail', **redirect_kwargs))
+
+    result = update_project_step_order(project_id, step_index, target_order, reorder_mode)
+    if not result.get('success'):
+        flash('Nao foi possivel alterar a ordem da tarefa.', 'danger')
+        redirect_kwargs['open_task'] = step_index
+    elif result.get('status') == 'swap':
+        flash('A ordem da tarefa foi trocada com sucesso.', 'success')
+        redirect_kwargs['open_task'] = target_order
+    elif result.get('status') == 'insert':
+        flash('A tarefa foi reposicionada com sucesso.', 'success')
+        redirect_kwargs['open_task'] = target_order
+    return redirect(url_for('projects.detail', **redirect_kwargs))
+
+
+@projects_bp.route('/<project_id>/delete_step/<int:step_index>', methods=['POST'])
+def delete_step(project_id, step_index):
+    if not _is_admin_user():
+        if _is_async_request():
+            return jsonify({'success': False, 'message': 'Apenas administradores podem excluir tarefas.'}), 403
+        flash('Apenas administradores podem excluir tarefas.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id))
+
+    result = delete_project_step(project_id, step_index)
+    if not result.get('success'):
+        if _is_async_request():
+            return jsonify({'success': False, 'message': 'Nao foi possivel excluir a tarefa.'}), 400
+        flash('Nao foi possivel excluir a tarefa.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
+    for file_path in result.get('deleted_file_paths', []):
+        delete_file(file_path)
+
+    deleted_substeps = result.get('deleted_substep_names', [])
+    if deleted_substeps:
+        success_message = f"Tarefa excluida com sucesso. {len(deleted_substeps)} subtarefa(s) vinculada(s) tambem foram removidas."
+        if _is_async_request():
+            return jsonify({
+                'success': True,
+                'message': success_message,
+                'deleted_substeps_count': len(deleted_substeps),
+            })
+        flash(
+            success_message,
+            'success'
+        )
+    else:
+        if _is_async_request():
+            return jsonify({'success': True, 'message': 'Tarefa excluida com sucesso.', 'deleted_substeps_count': 0})
+        flash('Tarefa excluida com sucesso.', 'success')
     return redirect(url_for('projects.detail', project_id=project_id))
 
 
@@ -287,6 +579,10 @@ def update_substep(project_id, step_index, substep_index):
 
 @projects_bp.route('/<project_id>/update_substep_name/<int:step_index>/<int:substep_index>', methods=['POST'])
 def update_substep_name(project_id, step_index, substep_index):
+    if not _is_admin_user():
+        flash('Apenas administradores podem alterar o nome das subtarefas.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
+
     substep_name = request.form.get('substep_name')
     if substep_name:
         update_project_substep_name(project_id, step_index, substep_index, substep_name)

@@ -25,6 +25,26 @@
         background-color: var(--secondary-color);
         color: var(--primary-color);
     }
+    .submit-loading-btn {
+        position: relative;
+    }
+    .submit-loading-btn.is-loading {
+        opacity: 0.85;
+        pointer-events: none;
+    }
+    .submit-loading-btn-spinner {
+        width: 0.9rem;
+        height: 0.9rem;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #ffffff;
+        border-radius: 9999px;
+        animation: submit-loading-spin 0.7s linear infinite;
+    }
+    @keyframes submit-loading-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
     .btn-secondary-action {
         background-color: white;
         color: var(--primary-color);
@@ -103,6 +123,35 @@
         display: flex;
         align-items: center;
         width: 100%;
+    }
+    .project-title-edit-form {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        min-width: 0;
+    }
+    .project-title-display {
+        font-size: 1.875rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--primary-color);
+        min-width: 0;
+    }
+    .project-title-input {
+        width: min(100%, 34rem);
+        min-width: 12rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        padding: 0.25rem 0.65rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--primary-color);
+        outline: none;
+        background: transparent;
+    }
+    .project-title-input:focus {
+        border-color: var(--primary-color);
     }
     .inline-step-name-display {
         font-size: 1.125rem;
@@ -237,6 +286,106 @@
         background-color: rgba(37, 99, 235, 0.08);
         color: var(--primary-color);
     }
+    .project-sprints-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+    .project-sprint-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        background: #fff;
+        padding: 1rem;
+    }
+    .project-sprint-progress-track {
+        height: 0.5rem;
+        border-radius: 9999px;
+        background: #e5e7eb;
+        overflow: hidden;
+    }
+    .project-sprint-progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+    }
+    .project-section-card {
+        padding: 1rem 1.25rem;
+    }
+    .project-section-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+    .project-view-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 0.9rem;
+    }
+    .project-view-btn {
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        padding: 0.55rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #4b5563;
+        background: #ffffff;
+        transition: all 150ms;
+    }
+    .project-view-btn:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+    .project-view-btn.is-active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: #ffffff;
+    }
+    .project-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+    .project-metric-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        background: #ffffff;
+        padding: 1rem;
+    }
+    .project-dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+    .project-dashboard-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        background: #ffffff;
+        padding: 1rem;
+    }
+    .project-dashboard-list-item + .project-dashboard-list-item {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #f3f4f6;
+    }
+    .task-order-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        color: #6b7280;
+        background: #ffffff;
+        transition: all 150ms;
+    }
+    .task-order-toggle-btn:hover {
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+    .task-order-toggle-btn.is-desc svg {
+        transform: rotate(180deg);
+    }
     @media (max-width: 820px) {
         .task-grid-row,
         .subtask-grid-row {
@@ -257,11 +406,28 @@
 
   {% include 'partials/navbar.html' %}
 
-  <div class="container mx-auto mt-8 p-4 flex-1">
-    <div class="bg-white rounded-lg shadow-md px-6 py-4 mb-6">
+  <div class="container mx-auto mt-4 px-4 pt-2 pb-4 flex-1">
+    <div class="bg-white rounded-lg shadow-md px-6 py-4 mb-3">
         <div class="flex justify-between items-center gap-4">
-            <div class="py-0.5">
+            <div class="py-0.5 min-w-0">
+                {% if project.can_manage_project %}
+                <form action="/projetos/{{ project.id }}/update_name" method="POST" class="project-title-edit-form" data-project-name-form>
+                    <span class="project-title-display truncate" data-project-name-display>{{ project.name }}</span>
+                    <input type="text" name="project_name" value="{{ project.name }}" required class="project-title-input hidden" data-project-name-input aria-label="Nome do projeto">
+                    <button type="button" class="inline-icon-btn shrink-0" title="Editar nome do projeto" aria-label="Editar nome do projeto" onclick="enableProjectNameEdit(this)">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L12 14l-4 1 1-4 7.5-7.5z" />
+                        </svg>
+                    </button>
+                    <button type="submit" class="inline-icon-btn hidden shrink-0" title="Salvar nome do projeto" aria-label="Salvar nome do projeto" data-project-name-save>
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </button>
+                </form>
+                {% else %}
                 <h1 class="text-3xl font-bold leading-tight text-primary">{{ project.name }}</h1>
+                {% endif %}
             </div>
             <div class="flex items-center gap-3 self-center">
                 {% if current_user.is_admin %}
@@ -416,37 +582,156 @@
         </div>
     </div>
     
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex items-center justify-between gap-3 mb-4">
-            <h2 class="text-2xl font-bold text-primary">Andamento do Projeto</h2>
-            {% if project.can_manage_project %}
-            <button type="button" onclick="toggleElement('add-project-step-form')" class="text-xs btn-secondary-action px-3 py-2 flex items-center">
-                <span class="mr-1">+</span> Tarefa
+    <div class="project-view-nav">
+        <button type="button" class="project-view-btn is-active" data-project-view-btn data-project-view-target="overview" onclick="setProjectView('overview')">
+            Projeto
+        </button>
+        <button type="button" class="project-view-btn" data-project-view-btn data-project-view-target="sprints" onclick="setProjectView('sprints')">
+            Sprints
+        </button>
+        <button type="button" class="project-view-btn" data-project-view-btn data-project-view-target="dashboard" onclick="setProjectView('dashboard')">
+            Dashboard
+        </button>
+    </div>
+
+    <section id="projectViewSprints" data-project-view-panel class="hidden">
+    <div class="bg-white rounded-lg shadow-md px-6 py-4 mb-6">
+        <div class="flex justify-between items-center gap-4">
+            <div class="py-0.5 min-w-0">
+                <h2 class="project-section-title text-primary">Sprints do Projeto</h2>
+            </div>
+            <button type="button" id="projectSprintsToggle" onclick="toggleProjectSprints()" class="project-header-toggle" aria-expanded="false" aria-controls="projectSprintsPanel" title="Mostrar sprints do projeto">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
             </button>
-            {% endif %}
+        </div>
+
+        {% if project_sprints %}
+        <div id="projectSprintsPanel" class="hidden mt-4">
+        <div class="project-sprints-grid">
+            {% for sprint in project_sprints %}
+            <div class="project-sprint-card">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h3 class="text-base font-bold text-gray-800 truncate">{{ sprint.name }}</h3>
+                        <p class="text-xs text-gray-500 mt-1">{{ sprint.start_date_display or 'Sem início' }} - {{ sprint.end_date_display or 'Sem fim' }}</p>
+                    </div>
+                    <span class="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                        data-theme-bg="{{ sprint.status_theme.bg }}"
+                        data-theme-color="{{ sprint.status_theme.text }}"
+                        data-theme-border="{{ sprint.status_theme.border }}">
+                        {{ sprint.status_label }}
+                    </span>
+                </div>
+
+                {% if sprint.description %}
+                <p class="mt-3 text-sm text-gray-600 whitespace-pre-line">{{ sprint.description }}</p>
+                {% endif %}
+
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
+                            <span>Tempo da sprint</span>
+                            <span>{{ sprint.progress.percent }}%</span>
+                        </div>
+                        <div class="project-sprint-progress-track">
+                            <div class="project-sprint-progress-fill" data-progress-width="{{ sprint.progress.percent }}" data-progress-color="{{ sprint.status_theme.text }}"></div>
+                        </div>
+                        <p class="mt-1 text-[11px] text-gray-500">{{ sprint.progress.label }}{% if sprint.progress.hint %} · {{ sprint.progress.hint }}{% endif %}</p>
+                    </div>
+
+                    <div>
+                        <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
+                            <span>Cards concluídos</span>
+                            <span>{{ sprint.done_cards }}/{{ sprint.total_cards }}</span>
+                        </div>
+                        <div class="project-sprint-progress-track">
+                            <div class="project-sprint-progress-fill" data-progress-width="{{ sprint.task_progress_percent }}" data-progress-color="#10b981"></div>
+                        </div>
+                        <p class="mt-1 text-[11px] text-gray-500">{{ sprint.task_progress_percent }}% dos cards deste projeto estão concluídos.</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex items-center justify-between gap-3">
+                    <p class="text-xs text-gray-500">{{ sprint.total_cards }} card(s) deste projeto nesta sprint</p>
+                    <a href="{{ url_for('kanban.board', project_id=project.id, sprint_id=sprint.id) }}" class="text-xs font-semibold text-primary hover:underline whitespace-nowrap">
+                        Abrir esta sprint no kanban
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500 italic">Nenhuma sprint vinculada aos cards deste projeto no Kanban.</p>
+        {% endif %}
+    </div>
+    </section>
+
+    <section id="projectViewOverview" data-project-view-panel>
+    <div class="project-metric-grid mb-6">
+        <div class="project-metric-card">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Progresso Geral</p>
+            <p class="mt-2 text-3xl font-bold text-primary">{{ project_dashboard.overall_progress_percent }}%</p>
+            <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.items_done }}/{{ project_dashboard.items_total }} itens concluídos</p>
+        </div>
+        <div class="project-metric-card">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Tarefas</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800">{{ project_dashboard.task_done }}/{{ project_dashboard.task_total }}</p>
+            <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.task_progress_percent }}% das tarefas concluídas</p>
+        </div>
+        <div class="project-metric-card">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Subtarefas</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800">{{ project_dashboard.subtask_done }}/{{ project_dashboard.subtask_total }}</p>
+            <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.subtask_progress_percent }}% das subtarefas concluídas</p>
+        </div>
+        <div class="project-metric-card">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Kanban</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800">{{ project_dashboard.linked_cards_total }}</p>
+            <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.linked_cards_progress_percent }}% dos cards vinculados estão concluídos</p>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md project-section-card">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <h2 class="project-section-title text-primary">Andamento do Projeto</h2>
+            <div class="flex items-center gap-2">
+                <button type="button" id="taskOrderToggle" onclick="toggleTaskOrder()" class="task-order-toggle-btn" title="Alternar ordem das tarefas" aria-label="Alternar ordem das tarefas">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7l4-4 4 4M8 17l4 4 4-4M12 3v18" />
+                    </svg>
+                </button>
+                {% if project.can_manage_project %}
+                <button type="button" onclick="toggleElement('add-project-step-form')" class="text-xs btn-secondary-action px-3 py-2 flex items-center">
+                    <span class="mr-1">+</span> Tarefa
+                </button>
+                {% endif %}
+            </div>
         </div>
 
         {% if project.can_manage_project %}
         <div id="add-project-step-form" class="hidden mb-6 p-4 bg-gray-50 rounded border border-gray-200">
             <form action="{{ url_for('projects.add_step', project_id=project.id) }}" method="POST" class="flex gap-2">
                 <input type="text" name="step_name" placeholder="Nome da tarefa" required class="flex-1 text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                <button type="submit" class="text-xs btn-primary-action px-4 py-2">Adicionar</button>
+                            <button type="submit" class="text-xs btn-primary-action px-4 py-2 submit-loading-btn" data-loading-submit data-loading-text="Adicionando...">Adicionar</button>
                 <button type="button" onclick="toggleElement('add-project-step-form')" class="text-xs text-gray-500 hover:text-gray-700 px-2">Cancelar</button>
             </form>
         </div>
         {% endif %}
         
-        <div class="space-y-4">
+        <div id="projectStepsList" class="space-y-4">
             {% for step in project.steps %}
-            {% set step_index = loop.index0 %}
-            <div class="task-connector-block border rounded-lg overflow-hidden" data-theme-border="{{ step.status_theme.border }}">
+            {% set step_index = step.ordem %}
+            {% set step_display_order = step.ordem + 1 %}
+            <div class="task-connector-block border rounded-lg overflow-hidden" data-theme-border="{{ step.status_theme.border }}" data-step-order="{{ step.ordem }}">
                 <!-- Header do Passo -->
                 <div class="px-4 py-2 task-grid-row" data-theme-bg="{{ step.status_theme.surface }}">
                     <div class="flex items-center task-grid-main">
                         <div class="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center mr-4"
                              data-theme-bg="{{ step.status_theme.accent }}" data-theme-color="{{ step.status_theme.accent_text }}">
-                            {% if step.status == 'done' %}✓{% else %}{{ loop.index }}{% endif %}
+                            {% if step.status == 'done' %}✓{% else %}{{ step_display_order }}{% endif %}
                         </div>
+                        {% if step.can_edit_name %}
                         <form action="{{ url_for('projects.update_step_name', project_id=project.id, step_index=step_index) }}" method="POST" class="inline-step-name-form" data-step-name-form>
                             <span class="inline-step-name-display" data-theme-color="{{ step.status_theme.text }}" data-step-name-display>{{ step.name }}</span>
                             <input type="text" name="step_name" value="{{ step.name }}" required class="inline-step-name-input hidden" data-theme-color="{{ step.status_theme.text }}" data-step-name-input aria-label="Nome da tarefa">
@@ -461,6 +746,9 @@
                                 </svg>
                             </button>
                         </form>
+                        {% else %}
+                        <span class="inline-step-name-display" data-theme-color="{{ step.status_theme.text }}">{{ step.name }}</span>
+                        {% endif %}
                     </div>
                     
                     <div class="task-grid-kanban">
@@ -513,6 +801,39 @@
                 </div>
 
                 <div id="taskDetails-{{ step_index }}" class="hidden pt-4 px-4 pb-2 bg-white border-t border-gray-100">
+                    {% if project.can_manage_project %}
+                    <div class="mb-4">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" onclick="toggleElement('taskOrderPanel-{{ step_index }}')" class="text-xs btn-secondary-action px-3 py-2 flex items-center">
+                                Ordem da tarefa
+                            </button>
+                            <form action="/projetos/{{ project.id }}/delete_step/{{ step_index }}" method="POST" class="js-delete-task-form" data-delete-task-form data-step-index="{{ step_index }}" data-task-name="{{ step.name }}" data-substep-names='{{ step.substeps | map(attribute="name") | list | tojson | forceescape }}'>
+                                <button type="submit" class="text-xs px-3 py-2 rounded border border-red-200 bg-red-50 font-semibold text-red-700 transition hover:bg-red-100">
+                                    Excluir tarefa
+                                </button>
+                            </form>
+                        </div>
+                        <div id="taskOrderPanel-{{ step_index }}" class="hidden mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <h5 class="text-xs font-bold text-blue-700 tracking-wide">Ordem da tarefa</h5>
+                            </div>
+                            <form action="{{ url_for('projects.update_step_order', project_id=project.id, step_index=step_index) }}" method="POST" class="flex flex-wrap gap-3 items-end">
+                                <div class="w-20">
+                                    <label class="block text-xs font-bold text-gray-600 tracking-wide mb-1">Nova ordem</label>
+                                    <input type="number" name="target_order" min="1" max="{{ project.steps|length }}" value="{{ step_display_order }}" required class="w-full rounded border border-gray-300 px-2 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                                </div>
+                                <div class="min-w-[16rem] flex-1">
+                                    <label class="block text-xs font-bold text-gray-600 tracking-wide mb-1">Como mover</label>
+                                    <select name="reorder_mode" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                                        <option value="swap">Trocar com esta posição</option>
+                                        <option value="insert" selected>Inserir nesta posição e deslocar as próximas</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="text-xs btn-primary-action px-4 py-2 whitespace-nowrap">Mudar ordem</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% if step.has_kanban_card and step.kanban_card %}
                     <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
                         <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
@@ -648,7 +969,7 @@
                     <div id="add-task-{{ step_index }}" class="hidden mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                         <form action="{{ url_for('projects.add_substep', project_id=project.id, step_index=step_index) }}" method="POST" class="flex gap-2">
                             <input type="text" name="substep_name" placeholder="Nome da subtarefa" required class="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
-                            <button type="submit" class="text-xs btn-primary-action px-3 py-1">Adicionar</button>
+                            <button type="submit" class="text-xs btn-primary-action px-3 py-1 submit-loading-btn" data-loading-submit data-loading-text="Adicionando...">Adicionar</button>
                             <button type="button" onclick="toggleElement('add-task-{{ step_index }}')" class="text-xs text-gray-500 hover:text-gray-700 px-2">Cancelar</button>
                         </form>
                     </div>
@@ -657,13 +978,14 @@
                     {% if step.substeps %}
                     <div class="space-y-1">
                         {% for substep in step.substeps %}
-                        {% set substep_index = loop.index0 %}
+                        {% set substep_index = substep.ordem %}
                         {% set detail_key = step_index ~ '-' ~ substep_index %}
                         <div class="border-b border-gray-100 last:border-0 pb-1">
                             <div class="subtask-grid-row px-2 py-1 rounded hover:bg-gray-50">
                                 <div class="flex items-center subtask-grid-main">
                                     <span class="w-2 h-2 rounded-full mr-3" data-theme-bg="{{ substep.status_theme.accent }}">
                                     </span>
+                                    {% if substep.can_edit_name %}
                                     <form action="{{ url_for('projects.update_substep_name', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" class="inline-step-name-form" data-step-name-form>
                                         <span class="inline-step-name-display text-sm {% if substep.status == 'done' %}text-gray-400 line-through{% else %}text-gray-700{% endif %}" data-step-name-display>{{ substep.name }}</span>
                                         <input type="text" name="substep_name" value="{{ substep.name }}" required class="inline-step-name-input hidden text-sm text-gray-700" data-step-name-input aria-label="Nome da subtarefa">
@@ -678,6 +1000,9 @@
                                             </svg>
                                         </button>
                                     </form>
+                                    {% else %}
+                                    <span class="inline-step-name-display text-sm {% if substep.status == 'done' %}text-gray-400 line-through{% else %}text-gray-700{% endif %}">{{ substep.name }}</span>
+                                    {% endif %}
                                     {% if substep.status == 'done' and substep.completed_at %}
                                     <span class="text-xs font-normal ml-2" data-theme-color="{{ substep.status_theme.pill_text }}">({{ substep.completed_at }})</span>
                                     {% endif %}
@@ -860,12 +1185,142 @@
             {% endfor %}
         </div>
     </div>
+    </section>
+
+    <section id="projectViewDashboard" data-project-view-panel class="hidden">
+    <div class="project-dashboard-grid">
+        <div class="project-dashboard-card">
+            <h2 class="project-section-title text-primary">Indicadores</h2>
+            <div class="mt-4 space-y-4">
+                <div>
+                    <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
+                        <span>Projeto como um todo</span>
+                        <span>{{ project_dashboard.overall_progress_percent }}%</span>
+                    </div>
+                    <div class="project-sprint-progress-track">
+                        <div class="project-sprint-progress-fill" data-progress-width="{{ project_dashboard.overall_progress_percent }}" data-progress-color="var(--primary-color)"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
+                        <span>Cards no Kanban</span>
+                        <span>{{ project_dashboard.linked_cards_progress_percent }}%</span>
+                    </div>
+                    <div class="project-sprint-progress-track">
+                        <div class="project-sprint-progress-fill" data-progress-width="{{ project_dashboard.linked_cards_progress_percent }}" data-progress-color="#10b981"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <div class="rounded-lg bg-gray-50 px-3 py-3">
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Docs</p>
+                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.documentation_total }}</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-3">
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Sprints</p>
+                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.sprints_total }}</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-3">
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Impedidos</p>
+                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.linked_cards_impeded }}</p>
+                    </div>
+                    <div class="rounded-lg bg-gray-50 px-3 py-3">
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Atrasados</p>
+                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.overdue_cards }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="project-dashboard-card">
+            <h2 class="project-section-title text-primary">Distribuição das Tarefas</h2>
+            <div class="mt-4">
+                {% for item in project_dashboard.task_status_breakdown %}
+                <div class="project-dashboard-list-item">
+                    <div class="mb-1 flex items-center justify-between text-sm font-semibold text-gray-700">
+                        <span>{{ item.label }}</span>
+                        <span>{{ item.count }}</span>
+                    </div>
+                    <div class="project-sprint-progress-track">
+                        <div class="project-sprint-progress-fill" data-progress-width="{{ item.percent }}" data-progress-color="var(--primary-color)"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="project-dashboard-card">
+            <h2 class="project-section-title text-primary">Distribuição das Subtarefas</h2>
+            <div class="mt-4">
+                {% for item in project_dashboard.subtask_status_breakdown %}
+                <div class="project-dashboard-list-item">
+                    <div class="mb-1 flex items-center justify-between text-sm font-semibold text-gray-700">
+                        <span>{{ item.label }}</span>
+                        <span>{{ item.count }}</span>
+                    </div>
+                    <div class="project-sprint-progress-track">
+                        <div class="project-sprint-progress-fill" data-progress-width="{{ item.percent }}" data-progress-color="#6366f1"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="project-dashboard-card">
+            <h2 class="project-section-title text-primary">Panorama das Sprints</h2>
+            <div class="mt-4">
+                {% for item in project_dashboard.sprint_status_breakdown %}
+                <div class="project-dashboard-list-item">
+                    <div class="mb-1 flex items-center justify-between text-sm font-semibold text-gray-700">
+                        <span>{{ item.label }}</span>
+                        <span>{{ item.count }}</span>
+                    </div>
+                    <div class="project-sprint-progress-track">
+                        <div class="project-sprint-progress-fill" data-progress-width="{{ item.percent }}" data-progress-color="#8b5cf6"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if project_dashboard.active_sprints %}
+                <div class="mt-4 rounded-lg bg-gray-50 px-3 py-3">
+                    <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Sprint ativa</p>
+                    <p class="mt-1 text-sm text-gray-700">
+                        {% for sprint in project_dashboard.active_sprints %}
+                        {{ sprint.name }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="project-dashboard-card">
+            <h2 class="project-section-title text-primary">Pontos de Atenção</h2>
+            <div class="mt-4 space-y-3">
+                {% for item in project_dashboard.attention_items %}
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+                    {{ item }}
+                </div>
+                {% endfor %}
+                {% if project_dashboard.next_due_card %}
+                <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                    Proximo prazo: {{ project_dashboard.next_due_card.title }} ate {{ project_dashboard.next_due_date_display }}.
+                </div>
+                {% endif %}
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+                    {{ project_dashboard.linked_cards_without_owner }} card(s) vinculados estão sem responsável.
+                </div>
+            </div>
+        </div>
+    </div>
+    </section>
   </div>
 
   {% with modal_id='moveConfirmModal', message_id='moveConfirmMessage', cancel_func='cancelStatusChange()', confirm_func='confirmStatusChange()' %}
     {% include 'partials/confirm_modal.html' %}
   {% endwith %}
   {% with modal_id='addKanbanConfirmModal', message_id='addKanbanConfirmMessage', cancel_func='cancelKanbanAdd()', confirm_func='confirmKanbanAdd()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
+  {% with modal_id='deleteTaskConfirmModal', message_id='deleteTaskConfirmMessage', cancel_func='cancelDeleteTask()', confirm_func='confirmDeleteTask()' %}
     {% include 'partials/confirm_modal.html' %}
   {% endwith %}
 
@@ -881,7 +1336,10 @@
   <script>
     let pendingStatusChange = null;
     let pendingKanbanAdd = null;
+    let pendingDeleteTask = null;
     const taskSectionStorageKey = 'project-task-sections-{{ project.id }}';
+    const projectViewStorageKey = 'project-detail-view-{{ project.id }}';
+    const taskOrderStorageKey = 'project-task-order-{{ project.id }}';
 
     function getStoredTaskSectionState() {
         try {
@@ -908,6 +1366,22 @@
         contentEl.classList.toggle('hidden', !isExpanded);
         toggleEl.classList.toggle('is-open', isExpanded);
         toggleEl.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+
+        if (!isExpanded) {
+            const taskDetailsEl = document.getElementById(`taskDetails-${stepIndex}`);
+            if (taskDetailsEl) {
+                taskDetailsEl.classList.add('hidden');
+            }
+
+            const taskOrderPanelEl = document.getElementById(`taskOrderPanel-${stepIndex}`);
+            if (taskOrderPanelEl) {
+                taskOrderPanelEl.classList.add('hidden');
+            }
+
+            contentEl.querySelectorAll('[id^="details-"], [id^="kanban-note-form-"], [id^="add-task-"]').forEach(function(panelEl) {
+                panelEl.classList.add('hidden');
+            });
+        }
     }
 
     function restoreTaskSectionStates() {
@@ -925,6 +1399,8 @@
         if (!openDetail) {
             return;
         }
+
+        setProjectView('overview');
 
         const parts = openDetail.split('-');
         if (parts.length !== 2) {
@@ -956,6 +1432,8 @@
             return;
         }
 
+        setProjectView('overview');
+
         const taskDetailsEl = document.getElementById(`taskDetails-${openTask}`);
         if (taskDetailsEl) {
             taskDetailsEl.classList.remove('hidden');
@@ -984,6 +1462,119 @@
         });
     }
 
+    function applyProjectSprintProgressBars() {
+        document.querySelectorAll('[data-progress-width]').forEach(function(element) {
+            const progressWidth = Number(element.dataset.progressWidth || '0');
+            const boundedWidth = Math.max(0, Math.min(100, progressWidth));
+            element.style.width = `${boundedWidth}%`;
+            if (element.dataset.progressColor) {
+                element.style.backgroundColor = element.dataset.progressColor;
+            }
+        });
+    }
+
+    function setProjectSprintsExpanded(isExpanded) {
+        const panelEl = document.getElementById('projectSprintsPanel');
+        const toggleEl = document.getElementById('projectSprintsToggle');
+        if (!panelEl || !toggleEl) {
+            return;
+        }
+
+        panelEl.classList.toggle('hidden', !isExpanded);
+        toggleEl.classList.toggle('is-open', isExpanded);
+        toggleEl.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+
+    function toggleProjectSprints() {
+        const panelEl = document.getElementById('projectSprintsPanel');
+        if (!panelEl) {
+            return;
+        }
+        setProjectSprintsExpanded(panelEl.classList.contains('hidden'));
+    }
+
+    function setProjectView(viewName) {
+        document.querySelectorAll('[data-project-view-panel]').forEach(function(panelEl) {
+            panelEl.classList.toggle('hidden', panelEl.id !== `projectView${viewName.charAt(0).toUpperCase()}${viewName.slice(1)}`);
+        });
+
+        document.querySelectorAll('[data-project-view-btn]').forEach(function(buttonEl) {
+            buttonEl.classList.toggle('is-active', buttonEl.dataset.projectViewTarget === viewName);
+        });
+
+        if (viewName === 'sprints') {
+            setProjectSprintsExpanded(true);
+        }
+
+        try {
+            localStorage.setItem(projectViewStorageKey, viewName);
+        } catch (error) {
+            // Ignora falhas de persistencia local.
+        }
+    }
+
+    function restoreProjectView() {
+        let storedView = 'overview';
+        try {
+            storedView = localStorage.getItem(projectViewStorageKey) || 'overview';
+        } catch (error) {
+            storedView = 'overview';
+        }
+
+        if (!['overview', 'sprints', 'dashboard'].includes(storedView)) {
+            storedView = 'overview';
+        }
+        setProjectView(storedView);
+    }
+
+    function renderTaskOrder(direction) {
+        const listEl = document.getElementById('projectStepsList');
+        const toggleEl = document.getElementById('taskOrderToggle');
+        if (!listEl || !toggleEl) {
+            return;
+        }
+
+        const orderedItems = Array.from(listEl.children).sort(function(a, b) {
+            const orderA = Number(a.dataset.stepOrder || '0');
+            const orderB = Number(b.dataset.stepOrder || '0');
+            return direction === 'desc' ? orderB - orderA : orderA - orderB;
+        });
+        orderedItems.forEach(function(itemEl) {
+            listEl.appendChild(itemEl);
+        });
+
+        toggleEl.classList.toggle('is-desc', direction === 'desc');
+        toggleEl.setAttribute('title', direction === 'desc' ? 'Exibindo tarefas em ordem decrescente' : 'Exibindo tarefas em ordem crescente');
+        toggleEl.setAttribute('aria-label', direction === 'desc' ? 'Exibindo tarefas em ordem decrescente' : 'Exibindo tarefas em ordem crescente');
+    }
+
+    function getStoredTaskOrderDirection() {
+        try {
+            const storedValue = localStorage.getItem(taskOrderStorageKey);
+            return storedValue === 'desc' ? 'desc' : 'asc';
+        } catch (error) {
+            return 'asc';
+        }
+    }
+
+    function setStoredTaskOrderDirection(direction) {
+        try {
+            localStorage.setItem(taskOrderStorageKey, direction);
+        } catch (error) {
+            // Ignora falhas de persistencia local.
+        }
+    }
+
+    function toggleTaskOrder() {
+        const nextDirection = getStoredTaskOrderDirection() === 'asc' ? 'desc' : 'asc';
+        setStoredTaskOrderDirection(nextDirection);
+        renderTaskOrder(nextDirection);
+    }
+
+    function restoreTaskOrder() {
+        renderTaskOrder(getStoredTaskOrderDirection());
+    }
+
     function toggleElement(id) {
         const element = document.getElementById(id);
         if (element) {
@@ -993,6 +1584,30 @@
                 element.classList.add('hidden');
             }
         }
+    }
+
+    function setupLoadingSubmitButtons() {
+        document.querySelectorAll('form').forEach(function(form) {
+            form.addEventListener('submit', function() {
+                if (form.dataset.isSubmitting === 'true') {
+                    return;
+                }
+
+                const submitButton = form.querySelector('[data-loading-submit]');
+                if (!submitButton) {
+                    return;
+                }
+
+                form.dataset.isSubmitting = 'true';
+                submitButton.disabled = true;
+                submitButton.classList.add('is-loading');
+
+                const originalHtml = submitButton.innerHTML;
+                const loadingText = submitButton.dataset.loadingText || 'Processando...';
+                submitButton.dataset.originalHtml = originalHtml;
+                submitButton.innerHTML = `<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>${escapeHtml(loadingText)}</span></span>`;
+            });
+        });
     }
 
     function toggleProjectDescription() {
@@ -1006,6 +1621,27 @@
         contentEl.classList.toggle('hidden', !isHidden);
         toggleEl.classList.toggle('is-open', isHidden);
         toggleEl.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+    }
+
+    function enableProjectNameEdit(buttonElement) {
+        const form = buttonElement.closest('[data-project-name-form]');
+        if (!form) {
+            return;
+        }
+
+        const displayEl = form.querySelector('[data-project-name-display]');
+        const inputEl = form.querySelector('[data-project-name-input]');
+        const saveEl = form.querySelector('[data-project-name-save]');
+        if (!displayEl || !inputEl || !saveEl) {
+            return;
+        }
+
+        displayEl.classList.add('hidden');
+        inputEl.classList.remove('hidden');
+        saveEl.classList.remove('hidden');
+        buttonElement.classList.add('hidden');
+        inputEl.focus();
+        inputEl.select();
     }
 
     function syncProjectDocumentationType() {
@@ -1039,7 +1675,10 @@
         document.querySelectorAll('[data-documentation-type-option]').forEach(function(optionEl) {
             optionEl.addEventListener('change', syncProjectDocumentationType);
         });
+        applyProjectSprintProgressBars();
         syncProjectDocumentationType();
+        restoreProjectView();
+        restoreTaskOrder();
     });
 
     function toggleTaskSection(stepIndex) {
@@ -1118,6 +1757,40 @@
         document.getElementById('addKanbanConfirmModal').classList.remove('hidden');
     }
 
+    function showDeleteTaskModal(formElement) {
+        if (!formElement) {
+            return;
+        }
+
+        const taskName = formElement.dataset.taskName || '';
+        const messageEl = document.getElementById('deleteTaskConfirmMessage');
+        let substepNames = [];
+        try {
+            substepNames = JSON.parse(formElement.dataset.substepNames || '[]');
+        } catch (error) {
+            substepNames = [];
+        }
+
+        const safeTaskName = escapeHtml(taskName);
+        if (messageEl) {
+            if (substepNames.length) {
+                const substepsList = substepNames.map(function(name) {
+                    return `<li>${escapeHtml(name)}</li>`;
+                }).join('');
+                messageEl.innerHTML = `Deseja excluir a tarefa?<br>
+                <div class="mt-3 font-bold text-lg text-gray-800">${safeTaskName}</div>
+                <div class="mt-3 text-sm font-medium text-gray-700">Isso também excluirá as subtarefas:</div>
+                <ul class="mt-2 list-disc pl-5 text-left text-sm font-semibold text-gray-800 space-y-1">${substepsList}</ul>`;
+            } else {
+                messageEl.innerHTML = `Deseja excluir a tarefa?<br>
+                <div class="mt-3 font-bold text-lg text-gray-800">${safeTaskName}</div>`;
+            }
+        }
+
+        pendingDeleteTask = { form: formElement };
+        document.getElementById('deleteTaskConfirmModal').classList.remove('hidden');
+    }
+
     function cancelStatusChange() {
         if (!pendingStatusChange) {
             return;
@@ -1136,7 +1809,7 @@
         const form = pendingStatusChange.form;
         document.getElementById('moveConfirmModal').classList.add('hidden');
         pendingStatusChange = null;
-        form.submit();
+        submitProjectForm(form);
     }
 
     function cancelKanbanAdd() {
@@ -1156,7 +1829,28 @@
         const form = pendingKanbanAdd.form;
         document.getElementById('addKanbanConfirmModal').classList.add('hidden');
         pendingKanbanAdd = null;
-        form.submit();
+        submitProjectForm(form);
+    }
+
+    function cancelDeleteTask() {
+        if (!pendingDeleteTask) {
+            return;
+        }
+
+        setDeleteTaskModalLoading(false);
+        document.getElementById('deleteTaskConfirmModal').classList.add('hidden');
+        pendingDeleteTask = null;
+    }
+
+    function confirmDeleteTask() {
+        if (!pendingDeleteTask) {
+            return;
+        }
+
+        const form = pendingDeleteTask.form;
+        setDeleteTaskModalLoading(true);
+        pendingDeleteTask = null;
+        deleteTaskWithoutLeavingPage(form);
     }
 
     function setupStatusChangeSelects() {
@@ -1195,6 +1889,126 @@
                 showKanbanAddModal(form);
             });
         });
+    }
+
+    function setupDeleteTaskForms() {
+        document.querySelectorAll('.js-delete-task-form').forEach(function(form) {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                pendingDeleteTask = { form: form };
+                showDeleteTaskModal(form);
+            });
+        });
+    }
+
+    function submitProjectForm(form) {
+        if (!form) {
+            return;
+        }
+
+        form.dataset.confirmedSubmit = 'true';
+
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+            return;
+        }
+
+        const submitButton = document.createElement('button');
+        submitButton.type = 'submit';
+        submitButton.hidden = true;
+        form.appendChild(submitButton);
+        submitButton.click();
+        form.removeChild(submitButton);
+    }
+
+    function deleteTaskWithoutLeavingPage(form) {
+        if (!form) {
+            setDeleteTaskModalLoading(false);
+            return;
+        }
+
+        const submitButton = form.querySelector('button[type="submit"], button[type="button"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+        }
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            return response.json()
+                .catch(function() {
+                    return { success: false, message: 'Nao foi possivel excluir a tarefa.' };
+                })
+                .then(function(data) {
+                    return { ok: response.ok, data: data };
+                });
+        })
+        .then(function(result) {
+            if (!result.ok || !result.data.success) {
+                throw new Error(result.data.message || 'Nao foi possivel excluir a tarefa.');
+            }
+
+            document.getElementById('deleteTaskConfirmModal').classList.add('hidden');
+
+            const taskCard = form.closest('.task-connector-block');
+            if (taskCard) {
+                taskCard.remove();
+            }
+
+            const stepsList = document.getElementById('projectStepsList');
+            if (stepsList && !stepsList.children.length) {
+                stepsList.innerHTML = '<p class="text-gray-500 italic">Nenhuma tarefa definida.</p>';
+            }
+
+            const storedState = getStoredTaskSectionState();
+            Object.keys(storedState).forEach(function(key) {
+                if (String(key) === String(form.dataset.stepIndex || '')) {
+                    delete storedState[key];
+                }
+            });
+            localStorage.setItem(taskSectionStorageKey, JSON.stringify(storedState));
+
+            window.location.reload();
+        })
+        .catch(function(error) {
+            setDeleteTaskModalLoading(false);
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
+            alert(error.message || 'Nao foi possivel excluir a tarefa.');
+        });
+    }
+
+    function setDeleteTaskModalLoading(isLoading) {
+        const modalEl = document.getElementById('deleteTaskConfirmModal');
+        if (!modalEl) {
+            return;
+        }
+
+        const confirmButton = modalEl.querySelector('[data-confirm-modal-confirm]');
+        const cancelButton = modalEl.querySelector('[data-confirm-modal-cancel]');
+
+        if (confirmButton) {
+            if (!confirmButton.dataset.originalText) {
+                confirmButton.dataset.originalText = confirmButton.textContent.trim();
+            }
+            confirmButton.disabled = isLoading;
+            confirmButton.classList.toggle('is-loading', isLoading);
+            confirmButton.innerHTML = isLoading
+                ? '<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>Excluindo...</span></span>'
+                : escapeHtml(confirmButton.dataset.originalText || 'Confirmar');
+        }
+
+        if (cancelButton) {
+            cancelButton.disabled = isLoading;
+            cancelButton.classList.toggle('opacity-60', isLoading);
+            cancelButton.classList.toggle('pointer-events-none', isLoading);
+        }
     }
 
     function renderKanbanNoteImagePreview(form, files) {
@@ -1324,7 +2138,9 @@
         restoreOpenDetailFromUrl();
         setupStatusChangeSelects();
         setupKanbanAddForms();
+        setupDeleteTaskForms();
         setupKanbanNoteForms();
+        setupLoadingSubmitButtons();
     });
   </script>
 

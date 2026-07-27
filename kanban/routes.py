@@ -9,7 +9,7 @@ except (ImportError, ValueError):
     from storage import save_upload  # type: ignore
 from .models import (
     get_board_data, create_card, update_card_position, create_column, update_column, reorder_columns, delete_column,
-    update_card_details, delete_card, archive_card, unarchive_card, get_users, add_card_note,
+    update_card_details, delete_card, archive_card, unarchive_card, get_users, add_card_note, get_card_by_id,
     get_project_tasks_available, get_all_projects, get_default_column_id, get_linked_project_task_refs,
     get_sprints, create_sprint, update_sprint, delete_sprint, get_sprint_status_options
 )
@@ -21,6 +21,14 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _can_edit_card(card):
+    if not getattr(current_user, 'is_authenticated', False):
+        return False
+    if getattr(current_user, 'is_admin', False):
+        return True
+    return str(card.get('responsavel') or '') == str(getattr(current_user, 'id', ''))
 
 
 def _redirect_back_with_note(card_id, status):
@@ -314,7 +322,17 @@ def move_card():
 
 
 @kanban_bp.route('/card/update/<card_id>', methods=['POST'])
+@login_required
 def edit_card(card_id):
+    card = get_card_by_id(card_id)
+    if not card:
+        flash('Tarefa nao encontrada.', 'danger')
+        return redirect(url_for('kanban.board'))
+
+    if not _can_edit_card(card):
+        flash('Apenas administradores ou o responsavel pela tarefa podem edita-la.', 'danger')
+        return redirect(url_for('kanban.board'))
+
     title = request.form.get('title')
     description = request.form.get('description')
     assigned_to = request.form.get('assigned_to')
@@ -324,6 +342,14 @@ def edit_card(card_id):
     sprint_id = request.form.get('sprint_id') or None
     impedido = 1 if request.form.get('impedido') else 0
     impedimento = request.form.get('impedimento') or None
+
+    if not current_user.is_admin:
+        title = card.get('nome_tarefa')
+        assigned_to = card.get('responsavel')
+        priority = card.get('prioridade')
+        start_date = card.get('data_inicio')
+        end_date = card.get('data_fim')
+        sprint_id = card.get('sprint_id')
 
     update_card_details(card_id, title, description, assigned_to, priority, start_date, end_date,
                         impedido=impedido, impedimento=impedimento, sprint_id=sprint_id)

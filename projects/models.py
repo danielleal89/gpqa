@@ -154,6 +154,18 @@ def _format_project_datetime(value):
     return value
 
 
+def _format_project_date(value):
+    if not value:
+        return ''
+
+    for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d/%m/%Y', '%d/%m/%Y %H:%M', '%d/%m/%Y - %H:%M'):
+        try:
+            return datetime.strptime(value, fmt).strftime('%d/%m/%Y')
+        except ValueError:
+            continue
+    return value
+
+
 def get_project_status_options():
     return [
         {'value': value, 'label': data['label'], 'theme': dict(data['theme'])}
@@ -401,7 +413,7 @@ def _get_project_kanban_cards(project_id):
         card['column_name'] = card.pop('coluna_nome') or card.get('coluna') or 'Sem coluna'
         card['assigned_to_name'] = card.pop('responsavel_nome') or 'Nao informado'
         card['assigned_to_id'] = str(card.pop('responsavel')) if card.get('responsavel') else ''
-        card['delivery_date_display'] = _format_project_datetime(card.get('data_entrega'))
+        card['delivery_date_display'] = _format_project_date(card.get('data_entrega'))
         card['start_date_display'] = _format_project_datetime(card.get('data_inicio'))
         card['end_date_display'] = _format_project_datetime(card.get('data_fim'))
         card['impedido'] = bool(card.get('impedido'))
@@ -966,6 +978,197 @@ def update_project_status(project_id, status):
     db.commit()
     _invalidate_project_caches(project_id)
     return get_project(project_id)
+
+
+def update_project_name(project_id, project_name):
+    db = get_db()
+    clean_name = (project_name or '').strip()
+    if not clean_name:
+        return None
+
+    db.execute(
+        'UPDATE projetos SET nome = ? WHERE id = ?',
+        (clean_name, project_id)
+    )
+    db.commit()
+    _invalidate_project_caches(project_id)
+    return get_project(project_id)
+
+
+def delete_project_step(project_id, step_index):
+    db = get_db()
+    ensure_project_status_columns(db)
+    ensure_kanban_task_notes_table(db)
+
+    step = db.execute(
+        'SELECT id, nome, ordem FROM passos WHERE project_id = ? AND ordem = ?',
+        (project_id, step_index)
+    ).fetchone()
+    if not step:
+        return {'success': False, 'status': 'missing_step'}
+
+    substeps = db.execute(
+        'SELECT id, nome, images FROM subpassos WHERE step_id = ? ORDER BY ordem',
+        (step['id'],)
+    ).fetchall()
+    deleted_substep_names = [row['nome'] for row in substeps]
+    file_paths_to_delete = []
+
+    for substep in substeps:
+        try:
+            image_paths = json.loads(substep['images']) if substep['images'] else []
+        except Exception:
+            image_paths = []
+        file_paths_to_delete.extend(path for path in image_paths if path)
+
+    linked_cards = db.execute(
+        'SELECT id FROM tarefas WHERE project_id = ? AND step_index = ?',
+        (project_id, step_index)
+    ).fetchall()
+    linked_card_ids = [row['id'] for row in linked_cards]
+    if linked_card_ids:
+        placeholders = ','.join('?' for _ in linked_card_ids)
+        note_rows = db.execute(
+            f'''
+            SELECT images
+            FROM kanban_task_notes
+            WHERE card_id IN ({placeholders})
+            ''',
+            tuple(linked_card_ids)
+        ).fetchall()
+        for note_row in note_rows:
+            try:
+                image_paths = json.loads(note_row['images']) if note_row['images'] else []
+            except Exception:
+                image_paths = []
+            file_paths_to_delete.extend(path for path in image_paths if path)
+
+        db.execute(
+            f'DELETE FROM kanban_task_notes WHERE card_id IN ({placeholders})',
+            tuple(linked_card_ids)
+        )
+
+    db.execute(
+        'DELETE FROM tarefas WHERE project_id = ? AND step_index = ?',
+        (project_id, step_index)
+    )
+    db.execute('DELETE FROM subpassos WHERE step_id = ?', (step['id'],))
+    db.execute('DELETE FROM passos WHERE id = ?', (step['id'],))
+    db.execute(
+        'UPDATE passos SET ordem = ordem - 1 WHERE project_id = ? AND ordem > ?',
+        (project_id, step_index)
+    )
+    db.execute(
+        'UPDATE tarefas SET step_index = step_index - 1 WHERE project_id = ? AND step_index > ?',
+        (project_id, step_index)
+    )
+
+    remaining_steps = db.execute(
+        'SELECT id FROM passos WHERE project_id = ? ORDER BY ordem',
+        (project_id,)
+    ).fetchall()
+    ids_str = ','.join(str(row['id']) for row in remaining_steps)
+    db.execute('UPDATE projetos SET passos_ids = ? WHERE id = ?', (ids_str, project_id))
+
+    db.commit()
+    _invalidate_project_caches(project_id)
+    return {
+        'success': True,
+        'status': 'deleted',
+        'deleted_task_name': step['nome'],
+        'deleted_substep_names': deleted_substep_names,
+        'deleted_file_paths': file_paths_to_delete,
+    }
+
+
+def update_project_step_order(project_id, current_order, target_order, mode='insert'):
+    db = get_db()
+    ensure_project_status_columns(db)
+
+    steps = db.execute(
+        'SELECT id, ordem FROM passos WHERE project_id = ? ORDER BY ordem',
+        (project_id,)
+    ).fetchall()
+    if not steps:
+        return {'success': False, 'status': 'missing_step'}
+
+    max_order = len(steps) - 1
+    normalized_target = max(0, min(int(target_order), max_order))
+    current_step = next((row for row in steps if int(row['ordem']) == int(current_order)), None)
+    if current_step is None:
+        return {'success': False, 'status': 'missing_step'}
+
+    if int(current_order) == normalized_target:
+        return {'success': True, 'status': 'unchanged', 'project': get_project(project_id)}
+
+    normalized_mode = 'swap' if (mode or '').strip().lower() == 'swap' else 'insert'
+    if normalized_mode == 'swap':
+        target_step = next((row for row in steps if int(row['ordem']) == normalized_target), None)
+        if target_step is None:
+            return {'success': False, 'status': 'missing_target'}
+        order_mapping = {
+            int(current_order): normalized_target,
+            normalized_target: int(current_order),
+        }
+    else:
+        order_mapping = {}
+        current_order_int = int(current_order)
+        if normalized_target < current_order_int:
+            for row in steps:
+                old_order = int(row['ordem'])
+                if normalized_target <= old_order < current_order_int:
+                    order_mapping[old_order] = old_order + 1
+            order_mapping[current_order_int] = normalized_target
+        else:
+            for row in steps:
+                old_order = int(row['ordem'])
+                if current_order_int < old_order <= normalized_target:
+                    order_mapping[old_order] = old_order - 1
+            order_mapping[current_order_int] = normalized_target
+
+    if not order_mapping:
+        return {'success': True, 'status': 'unchanged', 'project': get_project(project_id)}
+
+    for old_order, new_order in order_mapping.items():
+        db.execute(
+            'UPDATE passos SET ordem = ? WHERE project_id = ? AND ordem = ?',
+            (-(new_order + 1), project_id, old_order)
+        )
+
+    for old_order, new_order in order_mapping.items():
+        db.execute(
+            'UPDATE passos SET ordem = ? WHERE project_id = ? AND ordem = ?',
+            (new_order, project_id, -(new_order + 1))
+        )
+
+    case_clauses = ' '.join('WHEN ? THEN ?' for _ in order_mapping)
+    card_params = []
+    for old_order, new_order in order_mapping.items():
+        card_params.extend([old_order, new_order])
+    affected_orders = tuple(order_mapping.keys())
+    placeholders = ','.join('?' for _ in affected_orders)
+    db.execute(
+        f'''
+        UPDATE tarefas
+        SET step_index = CASE step_index
+            {case_clauses}
+            ELSE step_index
+        END
+        WHERE project_id = ? AND step_index IN ({placeholders})
+        ''',
+        tuple(card_params + [project_id, *affected_orders])
+    )
+
+    all_steps = db.execute(
+        'SELECT id FROM passos WHERE project_id = ? ORDER BY ordem',
+        (project_id,)
+    ).fetchall()
+    ids_str = ','.join(str(row['id']) for row in all_steps)
+    db.execute('UPDATE projetos SET passos_ids = ? WHERE id = ?', (ids_str, project_id))
+
+    db.commit()
+    _invalidate_project_caches(project_id)
+    return {'success': True, 'status': normalized_mode, 'project': get_project(project_id)}
 
 
 def update_project_step_name(project_id, step_index, step_name):

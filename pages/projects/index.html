@@ -82,17 +82,57 @@
     /* Cards with transparency */
     .project-card {
         background-color: rgba(255, 255, 255, 0.4);
-        padding: 1.3rem;
-        border-radius: 0.5rem;
+        padding: 1.6rem;
+        border-radius: 0.9rem;
         box-shadow: 4px 4px 6px 1px rgba(0, 0, 0, 0.1), 2px 2px 4px -1px rgba(0, 0, 0, 0.06);
         transition: all 0.2s;
         backdrop-filter: blur(5px);
         -webkit-backdrop-filter: blur(5px);
         border-top: 4px solid var(--project-accent, #6390fe);
+        min-height: 220px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     .project-card:hover {
         transform: translateY(-2px);
         box-shadow: 10px 10px 15px -3px rgba(0, 0, 0, 0.1), 4px 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    .projects-shell {
+        width: min(100%, 1680px);
+        margin: 0 auto;
+        padding: 2rem 1rem 2.5rem;
+        flex: 1;
+    }
+    .projects-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+    @media (min-width: 768px) {
+        .projects-shell {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        .projects-grid {
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 1.75rem;
+        }
+    }
+    @media (min-width: 1280px) {
+        .projects-shell {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+        .projects-grid {
+            grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+        }
+    }
+    @media (min-width: 1536px) {
+        .projects-grid {
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+        }
     }
   </style>
 </head>
@@ -103,37 +143,39 @@
   <div class="kanban-header">
        <h1 class="kanban-title">Projetos</h1>
        <div class="kanban-actions">
+           {% if can_create_project %}
            <a href="{{ url_for('projects.create') }}" class="btn-new-task">
                + Novo Projeto
            </a>
+           {% endif %}
        </div>
    </div>
 
-  <div class="container mx-auto mt-8 px-4 flex-1">
+  <div class="projects-shell">
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="projects-grid">
       {% for project in projects %}
       <div class="project-card" data-theme-accent="{{ project.project_status_theme.accent }}">
         <div class="flex justify-between items-center mb-4 gap-3">
-          <h2 class="text-xl font-semibold card-title text-center" title="{{ project.name }}">
+          <h2 class="text-2xl font-semibold card-title leading-tight" title="{{ project.name }}">
             {{ project.name | truncate(25, true, '...') }}
           </h2>
-          <span class="text-xs font-semibold px-2.5 py-1 rounded-full border"
+          <span class="text-sm font-semibold px-3 py-1.5 rounded-full border whitespace-nowrap"
                 data-theme-bg="{{ project.project_status_theme.pill_bg }}" data-theme-color="{{ project.project_status_theme.pill_text }}" data-theme-border="{{ project.project_status_theme.border }}">
             {{ project.project_status_name }}
           </span>
         </div>
-        <div class="mb-4">
+        <div class="mb-6">
           <div class="w-full bg-gray-200 rounded-full h-2.5">
             {% set total_steps = project.steps|length %}
             {% set completed_steps = project.steps|selectattr("status", "equalto", "done")|list|length %}
             {% set progress = (completed_steps / total_steps * 100) if total_steps > 0 else 0 %}
             <div class="h-2.5 rounded-full progress-bar-fill project-progress-fill" data-progress="{{ progress }}" data-fill-color="{{ project.project_status_theme.accent }}"></div>
           </div>
-          <span class="text-xs text-gray-500 mt-1 block text-right">{{ completed_steps }}/{{ total_steps }} tarefas completas</span>
+          <span class="text-sm text-gray-500 mt-2 block text-right">{{ completed_steps }}/{{ total_steps }} tarefas completas</span>
         </div>
-        <div class="flex justify-center mt-4">
-          <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn-new-task">
+        <div class="flex justify-center mt-auto pt-2">
+          <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn-new-task w-full justify-center">
             Ver Detalhes
           </a>
         </div>
@@ -141,7 +183,9 @@
       {% else %}
       <div class="col-span-full text-center py-10">
         <p class="text-gray-500 text-lg">Nenhum projeto encontrado!</p>
+        {% if can_create_project %}
         <a href="{{ url_for('projects.create') }}" class="mt-4 inline-block font-bold hover:underline" style="color: var(--primary-color);">Criar o primeiro projeto</a>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

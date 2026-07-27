@@ -269,6 +269,36 @@
     background-color: var(--secondary-color);
     color: var(--primary-color);
   }
+  .submit-loading-btn {
+    position: relative;
+  }
+  .submit-loading-btn.is-loading {
+    cursor: wait !important;
+    pointer-events: none;
+  }
+  .submit-loading-btn.is-loading:not(.column-save-btn) {
+    opacity: 0.85;
+  }
+  .submit-loading-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .submit-loading-spinner {
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    animation: submit-loading-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes submit-loading-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .kanban-header {
     background-color: white;
@@ -389,6 +419,11 @@
     border-color: var(--primary-color) !important;
     box-shadow: 0 0 0 1px var(--primary-color) !important;
     outline: none !important;
+  }
+  .input-readonly {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
   }
   .user-filter-select {
     font-size: 0.75rem;
@@ -543,7 +578,6 @@
             {% if card.start_date or card.end_date or card.priority or card.impedido %}
             <div class="text-xs text-gray-500 mb-2 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
-                    <!-- 
                     {% if card.start_date %}
                     <span title="Início">📅 {{ card.start_date[8:10] }}/{{ card.start_date[5:7] }}/{{ card.start_date[0:4] }}</span>
                     {% endif %}
@@ -551,7 +585,6 @@
                     {% if card.end_date %}
                     <span title="Fim" {% if card.is_overdue %}class="text-red-600 font-bold"{% endif %}>🏁 {{ card.end_date[8:10] }}/{{ card.end_date[5:7] }}/{{ card.end_date[0:4] }}</span>
                     {% endif %}
-                    -->
                 </div>
             </div>
             {% endif %}
@@ -572,14 +605,14 @@
                 {% endif %}
               </div>
               
-              <div class="flex flex-col items-end gap-1">
+              <div class="flex max-w-[62%] flex-wrap items-center justify-end gap-1">
                 {% if card.project_ref %}
-                <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200" title="Vinculado ao Projeto">
+                <span class="max-w-full rounded border border-indigo-200 bg-indigo-100 px-2 py-0.5 text-xs text-indigo-800" title="Vinculado ao Projeto">
                   {{ card.project_name }}
                 </span>
                 {% endif %}
                 {% if card.sprint %}
-                <span class="text-xs px-2 py-0.5 rounded border {% if card.sprint.status == 'active' %}bg-blue-100 text-blue-800 border-blue-200{% elif card.sprint.status == 'completed' %}bg-green-100 text-green-800 border-green-200{% else %}bg-violet-100 text-violet-800 border-violet-200{% endif %}" title="Sprint {{ card.sprint.name }}">
+                <span class="max-w-full rounded border px-2 py-0.5 text-xs {% if card.sprint.status == 'active' %}bg-blue-100 text-blue-800 border-blue-200{% elif card.sprint.status == 'completed' %}bg-green-100 text-green-800 border-green-200{% else %}bg-violet-100 text-violet-800 border-violet-200{% endif %}" title="Sprint {{ card.sprint.name }}">
                   {{ card.sprint.name }}
                 </span>
                 {% endif %}
@@ -670,7 +703,7 @@
               {% if card.end_date %}{{ card.end_date[8:10] }}/{{ card.end_date[5:7] }}{% endif %}
             </div>
             <div>
-              {% if card.project_ref %}
+                {% if card.project_ref %}
                 [{{ card.project_name }}]
                 {% if card.task_name %} {{ card.task_name }}{% endif %}
                 {% if card.subtask_name %} › {{ card.subtask_name }}{% endif %}
@@ -749,11 +782,11 @@
         <div class="mb-4 grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Início</label>
-                <input type="date" name="start_date" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" name="start_date" id="createStartDate" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Fim</label>
-                <input type="date" name="end_date" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="date" name="end_date" id="createEndDate" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
         </div>
 
@@ -762,9 +795,10 @@
           <select name="sprint_id" id="createSprintId" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Nenhuma</option>
             {% for sprint in sprints %}
-            <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.status_label }})</option>
+            <option value="{{ sprint.id }}" data-start-date="{{ sprint.start_date or '' }}" data-end-date="{{ sprint.end_date or '' }}" data-start-date-display="{{ sprint.start_date_display or '' }}" data-end-date-display="{{ sprint.end_date_display or '' }}">{{ sprint.name }} ({{ sprint.status_label }}{% if sprint.start_date_display or sprint.end_date_display %} · {{ sprint.start_date_display or 'Sem inicio' }} - {{ sprint.end_date_display or 'Sem fim' }}{% endif %})</option>
             {% endfor %}
           </select>
+          <p id="createSprintHint" class="mt-2 hidden text-[11px] text-gray-500"></p>
         </div>
         
         <div class="mb-4 relative z-50">
@@ -853,7 +887,7 @@
         
         <div class="flex justify-end space-x-2">
           <button type="button" onclick="closeModal('createModal')" class="px-3 py-1.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
-          <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm">Criar</button>
+          <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm submit-loading-btn" data-loading-submit data-loading-text="Criando...">Criar</button>
         </div>
       </form>
     </div>
@@ -874,7 +908,7 @@
         <div class="flex gap-2">
           <input type="text" name="column_name" maxlength="30" required placeholder="Ex: Revisao QA" class="flex-1 border rounded px-3 py-2 input-custom">
           <input type="color" name="column_color" value="#64748b" class="column-color-input" title="Cor da coluna">
-          <button type="submit" class="px-3 py-2 text-sm font-bold btn-primary-action rounded shadow-sm">Adicionar</button>
+          <button type="submit" class="px-3 py-2 text-sm font-bold btn-primary-action rounded shadow-sm submit-loading-btn" data-loading-submit data-loading-text="Adicionando...">Adicionar</button>
         </div>
         <p class="text-xs text-gray-500 mt-2">Arraste para reordenar, edite nome e cor e salve quando quiser.</p>
       </form>
@@ -892,7 +926,7 @@
           <form method="POST" action="{{ url_for('kanban.edit_column', column_id=col_id) }}" class="column-manager-form" data-column-edit-form>
             <input type="text" name="column_name" value="{{ col_data.name }}" maxlength="30" required class="flex-1 border rounded px-3 py-2 input-custom">
             <input type="color" name="column_color" value="{{ col_data.theme.accent }}" class="column-color-input" title="Cor da coluna">
-            <button type="submit" class="column-icon-btn column-save-btn" title="Salvar nome da coluna" disabled data-column-save-btn>
+            <button type="submit" class="column-icon-btn column-save-btn submit-loading-btn" title="Salvar nome da coluna" disabled data-column-save-btn data-loading-submit data-loading-text="Salvando...">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 4h10l3 3v13H5V5a1 1 0 011-1z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v6h6V4M9 20v-6h6v6" />
@@ -960,7 +994,7 @@
             <textarea name="description" rows="2" class="w-full border rounded px-3 py-2 text-sm input-custom" placeholder="O que essa sprint entrega?"></textarea>
           </div>
           <div class="flex justify-end">
-            <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm">Adicionar</button>
+            <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm submit-loading-btn" data-loading-submit data-loading-text="Adicionando...">Adicionar</button>
           </div>
         </form>
       </div>
@@ -1041,7 +1075,7 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
-                  <button type="submit" class="column-icon-btn column-save-btn" title="Salvar sprint" disabled data-sprint-save-btn>
+                  <button type="submit" class="column-icon-btn column-save-btn submit-loading-btn" title="Salvar sprint" disabled data-sprint-save-btn data-loading-submit data-loading-text="Salvando...">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 4h10l3 3v13H5V5a1 1 0 011-1z" />
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4v6h6V4M9 20v-6h6v6" />
@@ -1200,7 +1234,7 @@
         </div>
         <div class="mt-2 flex justify-end gap-2">
           <button type="button" onclick="closeModal('notesModal')" class="px-3 py-1 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded">Fechar</button>
-          <button type="submit" id="notesModalSubmit" class="px-3 py-1 text-xs font-bold btn-primary-action rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>Salvar nota</button>
+          <button type="submit" id="notesModalSubmit" class="px-3 py-1 text-xs font-bold btn-primary-action rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed submit-loading-btn" disabled data-loading-submit data-loading-text="Salvando...">Salvar nota</button>
         </div>
       </form>
     </div>
@@ -1225,9 +1259,10 @@
         </button>
       </div>
       <form id="editForm" method="POST">
+
         <div class="mb-3">
           <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Título</label>
-          <input type="text" name="title" id="editTitle" required class="w-full border rounded px-3 py-2 input-custom">
+          <input type="text" name="title" id="editTitle" required class="w-full border rounded px-3 py-2 input-custom {% if not current_user.is_admin %}input-readonly{% endif %}" {% if not current_user.is_admin %}readonly{% endif %}>
         </div>
         
         <div class="mb-3">
@@ -1238,7 +1273,7 @@
         <div class="mb-3 grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Responsável</label>
-              <select name="assigned_to" id="editAssignedTo" class="w-full border rounded px-3 py-2 input-custom">
+              <select name="assigned_to" id="editAssignedTo" class="w-full border rounded px-3 py-2 input-custom {% if not current_user.is_admin %}input-readonly{% endif %}" {% if not current_user.is_admin %}disabled{% endif %}>
                 <option value="">Selecione...</option>
                 {% for user in users %}
                 <option value="{{ user.id }}">{{ user.name }}</option>
@@ -1247,7 +1282,7 @@
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Prioridade</label>
-                <select name="priority" id="editPriority" class="w-full border rounded px-3 py-2 input-custom">
+                <select name="priority" id="editPriority" class="w-full border rounded px-3 py-2 input-custom {% if not current_user.is_admin %}input-readonly{% endif %}" {% if not current_user.is_admin %}disabled{% endif %}>
                     <option value="Baixa">Baixa</option>
                     <option value="Media" selected>Média</option>
                     <option value="Alta">Alta</option>
@@ -1257,12 +1292,13 @@
 
         <div class="mb-3">
           <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Sprint</label>
-          <select name="sprint_id" id="editSprintId" class="w-full border rounded px-3 py-2 input-custom">
+          <select name="sprint_id" id="editSprintId" class="w-full border rounded px-3 py-2 input-custom {% if not current_user.is_admin %}input-readonly{% endif %}" {% if not current_user.is_admin %}disabled{% endif %}>
             <option value="">Nenhuma</option>
             {% for sprint in sprints %}
-            <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.status_label }})</option>
+            <option value="{{ sprint.id }}" data-start-date="{{ sprint.start_date or '' }}" data-end-date="{{ sprint.end_date or '' }}" data-start-date-display="{{ sprint.start_date_display or '' }}" data-end-date-display="{{ sprint.end_date_display or '' }}">{{ sprint.name }} ({{ sprint.status_label }}{% if sprint.start_date_display or sprint.end_date_display %} · {{ sprint.start_date_display or 'Sem inicio' }} - {{ sprint.end_date_display or 'Sem fim' }}{% endif %})</option>
             {% endfor %}
           </select>
+          <p id="editSprintHint" class="mt-2 hidden text-[11px] text-gray-500"></p>
         </div>
 
         <div class="mb-3">
@@ -1276,17 +1312,17 @@
         <div class="mb-3 grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Início</label>
-                <input type="date" name="start_date" id="editStartDate" class="w-full border rounded px-3 py-2 input-custom">
+                <input type="date" name="start_date" id="editStartDate" class="w-full border rounded px-3 py-2 input-custom {% if not current_user.is_admin %}input-readonly{% endif %}" {% if not current_user.is_admin %}readonly{% endif %}>
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Data Fim</label>
-                <input type="date" name="end_date" id="editEndDate" class="w-full border rounded px-3 py-2 input-custom">
+                <input type="date" name="end_date" id="editEndDate" class="w-full border rounded px-3 py-2 input-custom {% if not current_user.is_admin %}input-readonly{% endif %}" {% if not current_user.is_admin %}readonly{% endif %}>
             </div>
         </div>
         
         <div class="flex justify-end space-x-2">
           <button type="button" onclick="closeModal('editModal')" class="px-3 py-1.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
-          <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm">Salvar</button>
+          <button type="submit" class="px-3 py-1.5 text-sm font-bold btn-primary-action rounded shadow-sm submit-loading-btn" data-loading-submit data-loading-text="Salvando...">Salvar</button>
         </div>
       </form>
     </div>
@@ -1524,6 +1560,53 @@
       });
     }
 
+    function getSubmitLoadingMarkup(button) {
+      const loadingText = button.getAttribute('data-loading-text') || 'Salvando...';
+      if (button.classList.contains('column-icon-btn')) {
+        return '<span class="submit-loading-spinner" aria-hidden="true"></span>';
+      }
+      return `<span class="submit-loading-content"><span class="submit-loading-spinner" aria-hidden="true"></span><span>${loadingText}</span></span>`;
+    }
+
+    function setSubmitLoadingState(button) {
+      if (!button || button.dataset.loadingApplied === 'true') {
+        return;
+      }
+
+      button.dataset.loadingApplied = 'true';
+      button.dataset.originalHtml = button.innerHTML;
+      button.classList.add('is-loading');
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.innerHTML = getSubmitLoadingMarkup(button);
+    }
+
+    function initSubmitLoadingButtons() {
+      document.addEventListener('submit', function(event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) {
+          return;
+        }
+
+        const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+        const loadingButton = submitter && submitter.matches('[data-loading-submit]')
+          ? submitter
+          : form.querySelector('[data-loading-submit]');
+
+        if (!loadingButton) {
+          return;
+        }
+
+        if (form.dataset.submitting === 'true') {
+          event.preventDefault();
+          return;
+        }
+
+        form.dataset.submitting = 'true';
+        setSubmitLoadingState(loadingButton);
+      });
+    }
+
     function applyColumnOrderToViews(columnIds) {
       const boardView = document.getElementById('boardView');
       const tableView = document.getElementById('tableView');
@@ -1705,8 +1788,11 @@
       initColumnManagerSort();
       initColumnNameEditors();
       initSprintEditForms();
+      initSubmitLoadingButtons();
       initNotesModalForm();
       initSprintProgressBars();
+      initializeSprintDateSync('createSprintId', 'createStartDate', 'createEndDate', 'createSprintHint');
+      initializeSprintDateSync('editSprintId', 'editStartDate', 'editEndDate', 'editSprintHint');
       setSprintManagerTab('progress');
       autoOpenNotesFromUrl();
     });
@@ -1730,6 +1816,7 @@
           ? SELECTED_SPRINT_FILTER
           : '';
       }
+      maybeApplySprintDates('createSprintId', 'createStartDate', 'createEndDate', 'createSprintHint', false);
       document.getElementById('createModal').classList.remove('hidden');
     }
 
@@ -1938,7 +2025,7 @@
       const statusMessages = {
         duplicate: 'Esta nota já existe para este card.',
         limit_reached: 'Este card já possui 10 notas salvas.',
-        images_limit: 'Voce pode anexar no maximo 5 imagens por nota.',
+        images_limit: 'Você pode anexar no maximo 5 imagens por nota.',
         empty: 'Digite uma nota antes de salvar.',
         missing_card: 'Não foi possível localizar este card.'
       };
@@ -1985,7 +2072,7 @@
           syncNotesModalInputFiles();
 
           if (combinedFiles.length > maxImages) {
-            alert(`Voce pode anexar no maximo ${maxImages} imagens por nota.`);
+            alert(`Você pode anexar no máximo ${maxImages} imagens por nota.`);
           }
         });
       }
@@ -2115,6 +2202,69 @@
       if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
       return dateStr;
     }
+
+    function updateSprintHint(selectId, hintId) {
+      const selectEl = document.getElementById(selectId);
+      const hintEl = document.getElementById(hintId);
+      if (!selectEl || !hintEl) {
+        return;
+      }
+
+      const selectedOption = selectEl.options[selectEl.selectedIndex];
+      const startDisplay = selectedOption ? selectedOption.getAttribute('data-start-date-display') || '' : '';
+      const endDisplay = selectedOption ? selectedOption.getAttribute('data-end-date-display') || '' : '';
+
+      if (!selectedOption || !selectedOption.value) {
+        hintEl.textContent = '';
+        hintEl.classList.add('hidden');
+        return;
+      }
+
+      hintEl.textContent = `Prazo da sprint: ${startDisplay || 'Sem inicio'} - ${endDisplay || 'Sem fim'}`;
+      hintEl.classList.remove('hidden');
+    }
+
+    function maybeApplySprintDates(selectId, startInputId, endInputId, hintId, promptUser) {
+      const selectEl = document.getElementById(selectId);
+      const startInputEl = document.getElementById(startInputId);
+      const endInputEl = document.getElementById(endInputId);
+
+      updateSprintHint(selectId, hintId);
+
+      if (!selectEl || !startInputEl || !endInputEl) {
+        return;
+      }
+
+      const selectedOption = selectEl.options[selectEl.selectedIndex];
+      if (!selectedOption || !selectedOption.value) {
+        return;
+      }
+
+      const sprintStart = selectedOption.getAttribute('data-start-date') || '';
+      const sprintEnd = selectedOption.getAttribute('data-end-date') || '';
+      if (!sprintStart || !sprintEnd || !promptUser) {
+        return;
+      }
+
+      const shouldApplyDates = window.confirm('Deseja atribuir o prazo desta sprint para a tarefa?');
+      if (shouldApplyDates) {
+        startInputEl.value = sprintStart;
+        endInputEl.value = sprintEnd;
+      }
+    }
+
+    function initializeSprintDateSync(selectId, startInputId, endInputId, hintId) {
+      const selectEl = document.getElementById(selectId);
+      if (!selectEl) {
+        return;
+      }
+
+      selectEl.addEventListener('change', function() {
+        maybeApplySprintDates(selectId, startInputId, endInputId, hintId, true);
+      });
+
+      maybeApplySprintDates(selectId, startInputId, endInputId, hintId, false);
+    }
     
     function openEditModal(id, title, description, assignedTo, priority, startDate, endDate, impedido, impedimento, sprintId) {
       document.getElementById('editForm').action = "{{ url_for('kanban.edit_card', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', id);
@@ -2122,11 +2272,12 @@
       document.getElementById('editDescription').value = description;
       document.getElementById('editAssignedTo').value = assignedTo;
       if(priority) document.getElementById('editPriority').value = priority;
-      if(startDate) document.getElementById('editStartDate').value = startDate;
-      if(endDate) document.getElementById('editEndDate').value = endDate;
+      document.getElementById('editStartDate').value = startDate || '';
+      document.getElementById('editEndDate').value = endDate || '';
       document.getElementById('editSprintId').value = sprintId || '';
       document.getElementById('editImpedido').checked = !!impedido;
       document.getElementById('editImpedimento').value = impedimento || '';
+      maybeApplySprintDates('editSprintId', 'editStartDate', 'editEndDate', 'editSprintHint', false);
       
       document.getElementById('editModal').classList.remove('hidden');
     }
