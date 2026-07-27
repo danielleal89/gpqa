@@ -1081,6 +1081,87 @@ def delete_project_step(project_id, step_index):
     }
 
 
+def delete_project_substep(project_id, step_index, substep_index):
+    db = get_db()
+    ensure_project_status_columns(db)
+    ensure_kanban_task_notes_table(db)
+
+    step = db.execute(
+        'SELECT id FROM passos WHERE project_id = ? AND ordem = ?',
+        (project_id, step_index)
+    ).fetchone()
+    if not step:
+        return {'success': False, 'status': 'missing_step'}
+
+    substep = db.execute(
+        'SELECT id, nome, images FROM subpassos WHERE step_id = ? AND ordem = ?',
+        (step['id'], substep_index)
+    ).fetchone()
+    if not substep:
+        return {'success': False, 'status': 'missing_substep'}
+
+    file_paths_to_delete = []
+    try:
+        image_paths = json.loads(substep['images']) if substep['images'] else []
+    except Exception:
+        image_paths = []
+    file_paths_to_delete.extend(path for path in image_paths if path)
+
+    linked_card = db.execute(
+        '''
+        SELECT id
+        FROM tarefas
+        WHERE project_id = ? AND step_index = ? AND substep_index = ?
+        LIMIT 1
+        ''',
+        (project_id, step_index, substep_index)
+    ).fetchone()
+    if linked_card:
+        note_rows = db.execute(
+            'SELECT images FROM kanban_task_notes WHERE card_id = ?',
+            (linked_card['id'],)
+        ).fetchall()
+        for note_row in note_rows:
+            try:
+                note_image_paths = json.loads(note_row['images']) if note_row['images'] else []
+            except Exception:
+                note_image_paths = []
+            file_paths_to_delete.extend(path for path in note_image_paths if path)
+
+        db.execute('DELETE FROM kanban_task_notes WHERE card_id = ?', (linked_card['id'],))
+        db.execute('DELETE FROM tarefas WHERE id = ?', (linked_card['id'],))
+
+    db.execute('DELETE FROM subpassos WHERE id = ?', (substep['id'],))
+    db.execute(
+        'UPDATE subpassos SET ordem = ordem - 1 WHERE step_id = ? AND ordem > ?',
+        (step['id'], substep_index)
+    )
+    db.execute(
+        '''
+        UPDATE tarefas
+        SET substep_index = substep_index - 1
+        WHERE project_id = ? AND step_index = ? AND substep_index > ?
+        ''',
+        (project_id, step_index, substep_index)
+    )
+
+    remaining_substeps = db.execute(
+        'SELECT id FROM subpassos WHERE step_id = ? ORDER BY ordem',
+        (step['id'],)
+    ).fetchall()
+    ids_str = ','.join(str(row['id']) for row in remaining_substeps)
+    db.execute('UPDATE passos SET subpassos_ids = ? WHERE id = ?', (ids_str, step['id']))
+
+    db.commit()
+    _invalidate_project_caches(project_id)
+    return {
+        'success': True,
+        'status': 'deleted',
+        'deleted_subtask_name': substep['nome'],
+        'deleted_file_paths': file_paths_to_delete,
+    }
+
+
 def update_project_step_order(project_id, current_order, target_order, mode='insert'):
     db = get_db()
     ensure_project_status_columns(db)

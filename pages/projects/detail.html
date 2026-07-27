@@ -1054,6 +1054,15 @@
                             
                             <!-- Detalhes do Subpasso -->
                             <div id="details-{{ step_index }}-{{ substep_index }}" class="hidden p-4 bg-gray-50 border-t border-gray-100 ml-4 border-l-2 border-blue-200 mt-2 text-sm">
+                                {% if project.can_manage_project %}
+                                <div class="mb-4">
+                                    <form action="{{ url_for('projects.delete_substep', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" class="js-delete-subtask-form inline-block" data-delete-subtask-form data-step-index="{{ step_index }}" data-substep-index="{{ substep_index }}" data-subtask-name="{{ substep.name }}">
+                                        <button type="submit" class="text-xs px-3 py-2 rounded border border-red-200 bg-red-50 font-semibold text-red-700 transition hover:bg-red-100">
+                                            Excluir subtarefa
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
                                 {% if substep.has_kanban_card and substep.kanban_card %}
                                 <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
                                     <div class="flex items-center justify-between gap-3 mb-3">
@@ -1323,6 +1332,9 @@
   {% with modal_id='deleteTaskConfirmModal', message_id='deleteTaskConfirmMessage', cancel_func='cancelDeleteTask()', confirm_func='confirmDeleteTask()' %}
     {% include 'partials/confirm_modal.html' %}
   {% endwith %}
+  {% with modal_id='deleteSubtaskConfirmModal', message_id='deleteSubtaskConfirmMessage', cancel_func='cancelDeleteSubtask()', confirm_func='confirmDeleteSubtask()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
 
   <div id="imagePreviewModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black bg-opacity-80" onclick="closeImagePreviewModal()">
     <div class="relative flex max-h-[92vh] max-w-[92vw] items-center justify-center p-4" onclick="event.stopPropagation()">
@@ -1337,6 +1349,7 @@
     let pendingStatusChange = null;
     let pendingKanbanAdd = null;
     let pendingDeleteTask = null;
+    let pendingDeleteSubtask = null;
     const taskSectionStorageKey = 'project-task-sections-{{ project.id }}';
     const projectViewStorageKey = 'project-detail-view-{{ project.id }}';
     const taskOrderStorageKey = 'project-task-order-{{ project.id }}';
@@ -1762,6 +1775,7 @@
             return;
         }
 
+        setDeleteTaskModalLoading(false);
         const taskName = formElement.dataset.taskName || '';
         const messageEl = document.getElementById('deleteTaskConfirmMessage');
         let substepNames = [];
@@ -1791,6 +1805,25 @@
         document.getElementById('deleteTaskConfirmModal').classList.remove('hidden');
     }
 
+    function showDeleteSubtaskModal(formElement) {
+        if (!formElement) {
+            return;
+        }
+
+        setDeleteSubtaskModalLoading(false);
+        const subtaskName = formElement.dataset.subtaskName || '';
+        const messageEl = document.getElementById('deleteSubtaskConfirmMessage');
+        const safeSubtaskName = escapeHtml(subtaskName);
+
+        if (messageEl) {
+            messageEl.innerHTML = `Deseja excluir a subtarefa?<br>
+            <div class="mt-3 font-bold text-lg text-gray-800">${safeSubtaskName}</div>`;
+        }
+
+        pendingDeleteSubtask = { form: formElement };
+        document.getElementById('deleteSubtaskConfirmModal').classList.remove('hidden');
+    }
+
     function cancelStatusChange() {
         if (!pendingStatusChange) {
             return;
@@ -1817,6 +1850,7 @@
             return;
         }
 
+        setKanbanAddModalLoading(false);
         document.getElementById('addKanbanConfirmModal').classList.add('hidden');
         pendingKanbanAdd = null;
     }
@@ -1827,16 +1861,12 @@
         }
 
         const form = pendingKanbanAdd.form;
-        document.getElementById('addKanbanConfirmModal').classList.add('hidden');
+        setKanbanAddModalLoading(true);
         pendingKanbanAdd = null;
         submitProjectForm(form);
     }
 
     function cancelDeleteTask() {
-        if (!pendingDeleteTask) {
-            return;
-        }
-
         setDeleteTaskModalLoading(false);
         document.getElementById('deleteTaskConfirmModal').classList.add('hidden');
         pendingDeleteTask = null;
@@ -1851,6 +1881,23 @@
         setDeleteTaskModalLoading(true);
         pendingDeleteTask = null;
         deleteTaskWithoutLeavingPage(form);
+    }
+
+    function cancelDeleteSubtask() {
+        setDeleteSubtaskModalLoading(false);
+        document.getElementById('deleteSubtaskConfirmModal').classList.add('hidden');
+        pendingDeleteSubtask = null;
+    }
+
+    function confirmDeleteSubtask() {
+        if (!pendingDeleteSubtask) {
+            return;
+        }
+
+        const form = pendingDeleteSubtask.form;
+        setDeleteSubtaskModalLoading(true);
+        pendingDeleteSubtask = null;
+        submitProjectFormDirectly(form);
     }
 
     function setupStatusChangeSelects() {
@@ -1884,8 +1931,14 @@
     function setupKanbanAddForms() {
         document.querySelectorAll('.js-kanban-add-form').forEach(function(form) {
             form.addEventListener('submit', function(event) {
+                if (form.dataset.confirmedSubmit === 'true') {
+                    delete form.dataset.confirmedSubmit;
+                    return;
+                }
+
                 event.preventDefault();
                 pendingKanbanAdd = { form: form };
+                setKanbanAddModalLoading(false);
                 showKanbanAddModal(form);
             });
         });
@@ -1897,6 +1950,21 @@
                 event.preventDefault();
                 pendingDeleteTask = { form: form };
                 showDeleteTaskModal(form);
+            });
+        });
+    }
+
+    function setupDeleteSubtaskForms() {
+        document.querySelectorAll('.js-delete-subtask-form').forEach(function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.dataset.confirmedSubmit === 'true') {
+                    delete form.dataset.confirmedSubmit;
+                    return;
+                }
+
+                event.preventDefault();
+                pendingDeleteSubtask = { form: form };
+                showDeleteSubtaskModal(form);
             });
         });
     }
@@ -1919,6 +1987,14 @@
         form.appendChild(submitButton);
         submitButton.click();
         form.removeChild(submitButton);
+    }
+
+    function submitProjectFormDirectly(form) {
+        if (!form) {
+            return;
+        }
+
+        HTMLFormElement.prototype.submit.call(form);
     }
 
     function deleteTaskWithoutLeavingPage(form) {
@@ -2001,6 +2077,60 @@
             confirmButton.classList.toggle('is-loading', isLoading);
             confirmButton.innerHTML = isLoading
                 ? '<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>Excluindo...</span></span>'
+                : escapeHtml(confirmButton.dataset.originalText || 'Confirmar');
+        }
+
+        if (cancelButton) {
+            cancelButton.disabled = isLoading;
+            cancelButton.classList.toggle('opacity-60', isLoading);
+            cancelButton.classList.toggle('pointer-events-none', isLoading);
+        }
+    }
+
+    function setDeleteSubtaskModalLoading(isLoading) {
+        const modalEl = document.getElementById('deleteSubtaskConfirmModal');
+        if (!modalEl) {
+            return;
+        }
+
+        const confirmButton = modalEl.querySelector('[data-confirm-modal-confirm]');
+        const cancelButton = modalEl.querySelector('[data-confirm-modal-cancel]');
+
+        if (confirmButton) {
+            if (!confirmButton.dataset.originalText) {
+                confirmButton.dataset.originalText = confirmButton.textContent.trim();
+            }
+            confirmButton.disabled = isLoading;
+            confirmButton.classList.toggle('is-loading', isLoading);
+            confirmButton.innerHTML = isLoading
+                ? '<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>Excluindo...</span></span>'
+                : escapeHtml(confirmButton.dataset.originalText || 'Confirmar');
+        }
+
+        if (cancelButton) {
+            cancelButton.disabled = isLoading;
+            cancelButton.classList.toggle('opacity-60', isLoading);
+            cancelButton.classList.toggle('pointer-events-none', isLoading);
+        }
+    }
+
+    function setKanbanAddModalLoading(isLoading) {
+        const modalEl = document.getElementById('addKanbanConfirmModal');
+        if (!modalEl) {
+            return;
+        }
+
+        const confirmButton = modalEl.querySelector('[data-confirm-modal-confirm]');
+        const cancelButton = modalEl.querySelector('[data-confirm-modal-cancel]');
+
+        if (confirmButton) {
+            if (!confirmButton.dataset.originalText) {
+                confirmButton.dataset.originalText = confirmButton.textContent.trim();
+            }
+            confirmButton.disabled = isLoading;
+            confirmButton.classList.toggle('is-loading', isLoading);
+            confirmButton.innerHTML = isLoading
+                ? '<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>Salvando...</span></span>'
                 : escapeHtml(confirmButton.dataset.originalText || 'Confirmar');
         }
 
@@ -2139,6 +2269,7 @@
         setupStatusChangeSelects();
         setupKanbanAddForms();
         setupDeleteTaskForms();
+        setupDeleteSubtaskForms();
         setupKanbanNoteForms();
         setupLoadingSubmitButtons();
     });

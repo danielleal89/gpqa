@@ -1180,7 +1180,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                     </a>
-                    <a id="btnDelete" href="#" class="text-red-600 hover:text-red-800 transition-colors" onclick="return confirm('Tem certeza que deseja excluir permanentemente?')" title="Excluir Permanentemente">
+                    <a id="btnDelete" href="#" class="text-red-600 hover:text-red-800 transition-colors" title="Excluir Permanentemente">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -1191,7 +1191,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                         </svg>
                     </a>
-                    <a id="btnDelete" href="#" class="text-red-600 hover:text-red-800 transition-colors" onclick="return confirm('Tem certeza que deseja excluir?')" title="Excluir">
+                    <a id="btnDelete" href="#" class="text-red-600 hover:text-red-800 transition-colors" title="Excluir">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -1581,6 +1581,38 @@
       button.innerHTML = getSubmitLoadingMarkup(button);
     }
 
+    function setActionLinkLoadingState(link, loadingText) {
+      if (!link || link.dataset.loadingApplied === 'true') {
+        return;
+      }
+
+      link.dataset.loadingApplied = 'true';
+      link.dataset.originalHtml = link.innerHTML;
+      link.classList.add('pointer-events-none', 'opacity-75');
+      link.setAttribute('aria-busy', 'true');
+
+      const text = loadingText || 'Excluindo...';
+      link.innerHTML = `<span class="inline-flex items-center gap-2"><span class="submit-loading-spinner" aria-hidden="true"></span><span class="text-xs font-bold">${text}</span></span>`;
+    }
+
+    function handleDeleteCardClick(event, link, isArchivedView) {
+      if (!link) {
+        return false;
+      }
+
+      const confirmMessage = isArchivedView
+        ? 'Tem certeza que deseja excluir permanentemente?'
+        : 'Tem certeza que deseja excluir?';
+
+      if (!window.confirm(confirmMessage)) {
+        event.preventDefault();
+        return false;
+      }
+
+      setActionLinkLoadingState(link, 'Excluindo...');
+      return true;
+    }
+
     function initSubmitLoadingButtons() {
       document.addEventListener('submit', function(event) {
         const form = event.target;
@@ -1938,6 +1970,17 @@
            let deleteUrl = "{{ url_for('kanban.remove_card', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', id);
            if (ARCHIVED_VIEW) deleteUrl += "?redirect_archived=1";
            btnDelete.href = deleteUrl;
+           btnDelete.dataset.loadingApplied = 'false';
+           btnDelete.classList.remove('pointer-events-none', 'opacity-75');
+           btnDelete.removeAttribute('aria-busy');
+           if (btnDelete.dataset.originalHtml) {
+               btnDelete.innerHTML = btnDelete.dataset.originalHtml;
+           } else {
+               btnDelete.dataset.originalHtml = btnDelete.innerHTML;
+           }
+           btnDelete.onclick = function(event) {
+               return handleDeleteCardClick(event, btnDelete, ARCHIVED_VIEW);
+           };
        }
       
       document.getElementById('viewModal').classList.remove('hidden');

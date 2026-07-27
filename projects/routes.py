@@ -13,7 +13,7 @@ from .models import (
     update_project_status, update_project_substep, update_substep_details,
     add_project_substep, add_project_step, update_project_step_name,
     update_project_substep_name, update_project_name, update_project_step_order,
-    delete_project_step,
+    delete_project_step, delete_project_substep,
     get_status_columns, get_project_status_options,
     create_project_step_kanban_card, create_project_substep_kanban_card,
     add_step_kanban_note, add_substep_kanban_note, add_project_documentation, delete_project_documentation
@@ -575,6 +575,31 @@ def update_substep(project_id, step_index, substep_index):
     status = request.form.get('status')
     update_project_substep(project_id, step_index, substep_index, status)
     return redirect(url_for('projects.detail', project_id=project_id))
+
+
+@projects_bp.route('/<project_id>/delete_substep/<int:step_index>/<int:substep_index>', methods=['POST'])
+def delete_substep(project_id, step_index, substep_index):
+    if not _is_admin_user():
+        if _is_async_request():
+            return jsonify({'success': False, 'message': 'Apenas administradores podem excluir subtarefas.'}), 403
+        flash('Apenas administradores podem excluir subtarefas.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
+
+    result = delete_project_substep(project_id, step_index, substep_index)
+    if not result.get('success'):
+        if _is_async_request():
+            return jsonify({'success': False, 'message': 'Nao foi possivel excluir a subtarefa.'}), 400
+        flash('Nao foi possivel excluir a subtarefa.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
+
+    for file_path in result.get('deleted_file_paths', []):
+        delete_file(file_path)
+
+    if _is_async_request():
+        return jsonify({'success': True, 'message': 'Subtarefa excluida com sucesso.'})
+
+    flash('Subtarefa excluida com sucesso.', 'success')
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
 
 @projects_bp.route('/<project_id>/update_substep_name/<int:step_index>/<int:substep_index>', methods=['POST'])
