@@ -1,3 +1,5 @@
+import sqlite3
+
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
 from flask_login import login_required, current_user
 from datetime import datetime
@@ -306,6 +308,8 @@ def add_card():
                         impedido=impedido, impedimento=impedimento, sprint_id=sprint_id)
         except ValueError as exc:
             flash(str(exc), 'danger')
+        except sqlite3.IntegrityError:
+            flash('Nao foi possivel criar a tarefa. Verifique o responsavel e a sprint selecionados.', 'danger')
 
     return redirect(url_for('kanban.board'))
 

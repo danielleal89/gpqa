@@ -941,7 +941,8 @@ def add_card_note(card_id, note_text, created_by_name='', image_paths=None):
     db = get_db()
 
     clean_note = ' '.join((note_text or '').strip().split())
-    if not clean_note:
+    normalized_image_paths = [path for path in (image_paths or []) if path]
+    if not clean_note and not normalized_image_paths:
         return {'success': False, 'status': 'empty'}
 
     card = db.execute('SELECT id FROM tarefas WHERE id = ? LIMIT 1', (card_id,)).fetchone()
@@ -955,17 +956,18 @@ def add_card_note(card_id, note_text, created_by_name='', image_paths=None):
     if notes_count >= 10:
         return {'success': False, 'status': 'limit_reached'}
 
-    duplicate_note = db.execute(
-        '''
-        SELECT id
-        FROM kanban_task_notes
-        WHERE card_id = ? AND LOWER(TRIM(note)) = LOWER(TRIM(?))
-        LIMIT 1
-        ''',
-        (card_id, clean_note)
-    ).fetchone()
-    if duplicate_note:
-        return {'success': False, 'status': 'duplicate'}
+    if clean_note:
+        duplicate_note = db.execute(
+            '''
+            SELECT id
+            FROM kanban_task_notes
+            WHERE card_id = ? AND LOWER(TRIM(note)) = LOWER(TRIM(?))
+            LIMIT 1
+            ''',
+            (card_id, clean_note)
+        ).fetchone()
+        if duplicate_note:
+            return {'success': False, 'status': 'duplicate'}
 
     db.execute(
         '''
@@ -975,7 +977,7 @@ def add_card_note(card_id, note_text, created_by_name='', image_paths=None):
         (
             card_id,
             clean_note,
-            json.dumps(image_paths or []),
+            json.dumps(normalized_image_paths),
             (created_by_name or '').strip(),
             datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         )
@@ -996,6 +998,19 @@ def create_card(title, description, column_id=DEFAULT_COLUMN_SLUG, assigned_to=N
     project_id = None
     step_index = None
     substep_index = None
+    normalized_assigned_to = None
+    normalized_sprint_id = None
+
+    if assigned_to not in (None, ''):
+        normalized_assigned_to = int(assigned_to)
+        assigned_user = get_user_by_id(normalized_assigned_to)
+        if not assigned_user:
+            raise ValueError('O responsável selecionado não é válido.')
+
+    if sprint_id not in (None, ''):
+        normalized_sprint_id = int(sprint_id)
+        if not get_sprint_by_id(normalized_sprint_id):
+            raise ValueError('A sprint selecionada não é válida.')
 
     if project_ref:
         project_id = project_ref.get('project_id')
@@ -1020,13 +1035,13 @@ def create_card(title, description, column_id=DEFAULT_COLUMN_SLUG, assigned_to=N
             arquivado, project_id, step_index, substep_index, impedido, impedimento, sprint_id
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
-    ''', (title, description, target_column['slug'], target_column['id'], assigned_to, priority, start_date, end_date,
-          project_id, step_index, substep_index, impedido, impedimento, sprint_id or None))
+    ''', (title, description, target_column['slug'], target_column['id'], normalized_assigned_to, priority, start_date, end_date,
+          project_id, step_index, substep_index, impedido, impedimento, normalized_sprint_id))
     db.commit()
     _invalidate_kanban_caches(include_projects=True)
 
     card_id = cursor.lastrowid
-    sprint = get_sprint_by_id(sprint_id) if sprint_id else None
+    sprint = get_sprint_by_id(normalized_sprint_id) if normalized_sprint_id else None
 
     # Return new card dict structure
     new_card = {
@@ -1034,9 +1049,9 @@ def create_card(title, description, column_id=DEFAULT_COLUMN_SLUG, assigned_to=N
         'title': title,
         'description': description,
         'column_id': target_column['slug'],
-        'assigned_to': str(assigned_to) if assigned_to else None,
+        'assigned_to': str(normalized_assigned_to) if normalized_assigned_to else None,
         'project_ref': project_ref,
-        'sprint_id': int(sprint_id) if sprint_id else None,
+        'sprint_id': normalized_sprint_id,
         'sprint': sprint,
         'priority': priority,
         'start_date': start_date,

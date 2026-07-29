@@ -530,10 +530,10 @@
                 </div>
 
                 {% if project.documentation_items %}
-                <div class="space-y-2">
+                <div class="grid gap-3 md:grid-cols-2">
                     {% for item in project.documentation_items %}
-                    <div class="rounded border border-gray-200 bg-white px-3 py-3">
-                        <div class="flex items-start justify-between gap-3">
+                    <div class="rounded border border-gray-200 bg-white px-3 py-2.5">
+                        <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0 flex-1">
                                 {% if item.item_type == 'file' %}
                                 <div class="min-w-0">
@@ -551,7 +551,7 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            <div class="shrink-0 text-right">
+                            <div class="shrink-0 flex items-center gap-2">
                                 <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
                                     {% if item.item_type == 'file' %}
                                     {{ 'Imagem' if item.is_image else 'Arquivo' }}
@@ -560,7 +560,7 @@
                                     {% endif %}
                                 </span>
                                 {% if project.can_manage_project %}
-                                <form action="{{ url_for('projects.remove_documentation', project_id=project.id, documentation_id=item.id) }}" method="POST" class="mt-2" onsubmit="return confirm('Deseja excluir esta documentação?');">
+                                <form action="{{ url_for('projects.remove_documentation', project_id=project.id, documentation_id=item.id) }}" method="POST" onsubmit="return confirm('Deseja excluir esta documentação?');">
                                     <button type="submit" class="text-[11px] font-semibold text-red-600 hover:text-red-800 transition-colors">
                                         Excluir
                                     </button>
@@ -568,7 +568,7 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <p class="mt-2 text-xs text-gray-400">Adicionado por {{ item.created_by_name or 'Nao informado' }} em {{ item.created_at_display }}</p>
+                        <p class="mt-1.5 text-xs text-gray-400">Adicionado por {{ item.created_by_name or 'Nao informado' }} em {{ item.created_at_display }}</p>
                     </div>
                     {% endfor %}
                 </div>

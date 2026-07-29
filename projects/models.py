@@ -1330,7 +1330,8 @@ def add_substep_kanban_note(project_id, step_index, substep_index, note_text, cr
     ensure_kanban_task_notes_table(db)
 
     clean_note = ' '.join((note_text or '').strip().split())
-    if not clean_note:
+    normalized_image_paths = [path for path in (image_paths or []) if path]
+    if not clean_note and not normalized_image_paths:
         return {'success': False, 'status': 'empty'}
 
     linked_card = db.execute(
@@ -1353,17 +1354,18 @@ def add_substep_kanban_note(project_id, step_index, substep_index, note_text, cr
     if notes_count >= 10:
         return {'success': False, 'status': 'limit_reached'}
 
-    duplicate_note = db.execute(
-        '''
-        SELECT id
-        FROM kanban_task_notes
-        WHERE card_id = ? AND LOWER(TRIM(note)) = LOWER(TRIM(?))
-        LIMIT 1
-        ''',
-        (card_id, clean_note)
-    ).fetchone()
-    if duplicate_note:
-        return {'success': False, 'status': 'duplicate'}
+    if clean_note:
+        duplicate_note = db.execute(
+            '''
+            SELECT id
+            FROM kanban_task_notes
+            WHERE card_id = ? AND LOWER(TRIM(note)) = LOWER(TRIM(?))
+            LIMIT 1
+            ''',
+            (card_id, clean_note)
+        ).fetchone()
+        if duplicate_note:
+            return {'success': False, 'status': 'duplicate'}
 
     db.execute(
         '''
@@ -1373,7 +1375,7 @@ def add_substep_kanban_note(project_id, step_index, substep_index, note_text, cr
         (
             card_id,
             clean_note,
-            json.dumps(image_paths or []),
+            json.dumps(normalized_image_paths),
             (created_by_name or '').strip(),
             datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         )
@@ -1388,7 +1390,8 @@ def add_step_kanban_note(project_id, step_index, note_text, created_by_name='', 
     ensure_kanban_task_notes_table(db)
 
     clean_note = ' '.join((note_text or '').strip().split())
-    if not clean_note:
+    normalized_image_paths = [path for path in (image_paths or []) if path]
+    if not clean_note and not normalized_image_paths:
         return {'success': False, 'status': 'empty'}
 
     linked_card = db.execute(
@@ -1411,17 +1414,18 @@ def add_step_kanban_note(project_id, step_index, note_text, created_by_name='', 
     if notes_count >= 10:
         return {'success': False, 'status': 'limit_reached'}
 
-    duplicate_note = db.execute(
-        '''
-        SELECT id
-        FROM kanban_task_notes
-        WHERE card_id = ? AND LOWER(TRIM(note)) = LOWER(TRIM(?))
-        LIMIT 1
-        ''',
-        (card_id, clean_note)
-    ).fetchone()
-    if duplicate_note:
-        return {'success': False, 'status': 'duplicate'}
+    if clean_note:
+        duplicate_note = db.execute(
+            '''
+            SELECT id
+            FROM kanban_task_notes
+            WHERE card_id = ? AND LOWER(TRIM(note)) = LOWER(TRIM(?))
+            LIMIT 1
+            ''',
+            (card_id, clean_note)
+        ).fetchone()
+        if duplicate_note:
+            return {'success': False, 'status': 'duplicate'}
 
     db.execute(
         '''
@@ -1431,7 +1435,7 @@ def add_step_kanban_note(project_id, step_index, note_text, created_by_name='', 
         (
             card_id,
             clean_note,
-            json.dumps(image_paths or []),
+            json.dumps(normalized_image_paths),
             (created_by_name or '').strip(),
             datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         )

@@ -2127,7 +2127,9 @@
       const textarea = document.getElementById('notesModalTextarea');
       const submitBtn = document.getElementById('notesModalSubmit');
       if (!textarea || !submitBtn) return;
-      submitBtn.disabled = !textarea.value.trim();
+      const hasText = Boolean(textarea.value.trim());
+      const hasImages = Array.isArray(notesModalFiles) && notesModalFiles.length > 0;
+      submitBtn.disabled = !(hasText || hasImages);
     }
 
     function renderNotesModalImagePreview(files) {
@@ -2194,6 +2196,7 @@
           : 'text-[11px] font-semibold text-gray-400';
       }
       renderNotesModalImagePreview(notesModalFiles);
+      updateNotesModalSubmitState();
     }
 
     function removeNotesModalImage(fileIndex) {
