@@ -450,11 +450,8 @@
           {% endif %}
       </h1>
       <div class="kanban-actions">
-          <form method="get" action="{{ url_for('kanban.board') }}" class="flex items-center space-x-2 mr-3">
+          <form method="get" action="{% if archived_view %}{{ url_for('kanban.archived_board') }}{% else %}{{ url_for('kanban.board') }}{% endif %}" class="flex items-center space-x-2 mr-3">
               <input type="hidden" name="view" id="viewModeInput" value="{{ view_mode or 'board' }}">
-              {% if archived_view %}
-              <input type="hidden" name="archived" value="1">
-              {% endif %}
               <select name="user_id" class="user-filter-select" onchange="this.form.submit()">
                   <option value="">Todos</option>
                   {% for user in users %}
@@ -495,7 +492,7 @@
                    </svg>
                </a>
             {% else %}
-               <a href="{{ url_for('kanban.board', archived=1) }}" class="mr-2 flex items-center justify-center" title="Ver Tarefas Arquivadas">
+               <a href="{{ url_for('kanban.archived_board') }}" class="mr-2 flex items-center justify-center" title="Ver Tarefas Arquivadas">
                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                    </svg>
@@ -555,8 +552,8 @@
             {% if card.priority or card.impedido %}
             <div class="absolute top-2 right-2 flex items-center gap-1">
               {% if card.impedido %}
-              <div class="text-sm font-bold leading-none text-red-600" title="{{ card.impedimento or 'Card com impedimento' }}">
-                !
+              <div class="flex h-4 w-4 items-center justify-center" title="{{ card.impedimento or 'Card com impedimento' }}">
+                <img src="{{ url_for('static', filename='img/impedimento.png') }}" alt="Impedimento" class="h-4 w-4 object-contain">
               </div>
               {% endif %}
               {% if card.priority %}
@@ -575,15 +572,19 @@
             
 
 
-            {% if card.start_date or card.end_date or card.priority or card.impedido %}
+            {% if card.start_date or card.end_date or card.delivery_date or card.priority or card.impedido %}
             <div class="text-xs text-gray-500 mb-2 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
-                    {% if card.start_date %}
-                    <span title="Início">📅 {{ card.start_date[8:10] }}/{{ card.start_date[5:7] }}/{{ card.start_date[0:4] }}</span>
-                    {% endif %}
-                    
-                    {% if card.end_date %}
-                    <span title="Fim" {% if card.is_overdue %}class="text-red-600 font-bold"{% endif %}>🏁 {{ card.end_date[8:10] }}/{{ card.end_date[5:7] }}/{{ card.end_date[0:4] }}</span>
+                    {% if card.column_id == 'done' and card.delivery_date %}
+                    <span title="Entregue">✅ Entregue: {{ card.delivery_date[8:10] }}/{{ card.delivery_date[5:7] }}/{{ card.delivery_date[0:4] }}</span>
+                    {% else %}
+                        {% if card.start_date %}
+                        <span title="Início">📅 {{ card.start_date[8:10] }}/{{ card.start_date[5:7] }}/{{ card.start_date[0:4] }}</span>
+                        {% endif %}
+                        
+                        {% if card.end_date %}
+                        <span title="Fim" {% if card.is_overdue %}class="text-red-600 font-bold"{% endif %}>🏁 {{ card.end_date[8:10] }}/{{ card.end_date[5:7] }}/{{ card.end_date[0:4] }}</span>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -632,7 +633,8 @@
               data-assigned-to-id="{{ card.assigned_to }}"
               data-project-name="{{ card.project_name or '' }}"
               data-task-name="{{ card.task_name or '' }}"
-              data-subtask-name="{{ card.subtask_name or '' }}"
+              data-subtasks="{{ card.subtasks|tojson|forceescape }}"
+              data-can-toggle-subtasks="{{ 1 if card.can_toggle_subtasks else 0 }}"
               data-sprint-id="{{ card.sprint_id or '' }}"
               data-sprint-name="{{ card.sprint.name if card.sprint else '' }}"
               data-sprint-status-label="{{ card.sprint.status_label if card.sprint else '' }}"
@@ -680,7 +682,8 @@
                data-assigned-to-id="{{ card.assigned_to }}"
                data-project-name="{{ card.project_name or '' }}"
                data-task-name="{{ card.task_name or '' }}"
-               data-subtask-name="{{ card.subtask_name or '' }}"
+               data-subtasks="{{ card.subtasks|tojson|forceescape }}"
+               data-can-toggle-subtasks="{{ 1 if card.can_toggle_subtasks else 0 }}"
                data-sprint-id="{{ card.sprint_id or '' }}"
                data-sprint-name="{{ card.sprint.name if card.sprint else '' }}"
                data-sprint-status-label="{{ card.sprint.status_label if card.sprint else '' }}"
@@ -698,15 +701,18 @@
               {% endif %}
             </div>
             <div>
+              {% if card.column_id == 'done' and card.delivery_date %}
+              Entregue: {{ card.delivery_date[8:10] }}/{{ card.delivery_date[5:7] }}
+              {% else %}
               {% if card.start_date %}{{ card.start_date[8:10] }}/{{ card.start_date[5:7] }}{% endif %}
               {% if card.start_date and card.end_date %} - {% endif %}
               {% if card.end_date %}{{ card.end_date[8:10] }}/{{ card.end_date[5:7] }}{% endif %}
+              {% endif %}
             </div>
             <div>
                 {% if card.project_ref %}
                 [{{ card.project_name }}]
                 {% if card.task_name %} {{ card.task_name }}{% endif %}
-                {% if card.subtask_name %} › {{ card.subtask_name }}{% endif %}
                 {% if card.sprint %}<span class="block text-[11px] text-gray-500 mt-1">Sprint: {{ card.sprint.name }}</span>{% endif %}
               {% else %}
                 {% if card.sprint %}
@@ -790,6 +796,7 @@
             </div>
         </div>
 
+        {% if current_user.is_admin %}
         <div class="mb-4">
           <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Sprint</label>
           <select name="sprint_id" id="createSprintId" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -840,41 +847,14 @@
                         <div id="proj-{{ project.id }}" class="hidden ml-2 border-l-2 border-gray-100">
                             {% for step in project.steps if step.show_in_kanban_selector %}
                             {% set step_index = step.kanban_step_index %}
-                            <div class="relative">
-                                <div class="flex items-center p-2 hover:bg-blue-50 cursor-pointer select-none group">
-                                    <!-- Arrow for Subtasks -->
-                                    {% if step.visible_substeps %}
-                                    <div class="p-1 mr-1 rounded hover:bg-blue-100"
-                                         onclick="event.stopPropagation(); toggleTreeItem('step-{{ project.id }}-{{ step_index }}', 'arrow-step-{{ project.id }}-{{ step_index }}')"
-                                         onmouseenter="expandTreeItem('step-{{ project.id }}-{{ step_index }}', 'arrow-step-{{ project.id }}-{{ step_index }}')">
-                                        <svg class="w-3 h-3 text-gray-400 transform transition-transform duration-200" id="arrow-step-{{ project.id }}-{{ step_index }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                        </svg>
-                                    </div>
-                                    {% else %}
-                                    <span class="w-5 h-5 mr-1"></span>
-                                    {% endif %}
-                                    
-                                    <!-- Task Name (Selectable) -->
-                                    <span class="text-sm flex-1 {% if step.kanban_linked %}text-gray-400 cursor-default{% else %}text-gray-700{% endif %}" 
-                                          {% if not step.kanban_linked %}
-                                          onclick="selectProjectTask('{{ project.id }}:{{ step_index }}:-1', '[{{ project.name }}] {{ step.name }}')">
-                                          {% endif %}
-                                        {{ step.name }}
-                                    </span>
-                                </div>
-
-                                <!-- Subtasks -->
-                                {% if step.visible_substeps %}
-                                <div id="step-{{ project.id }}-{{ step_index }}" class="hidden ml-6 border-l border-gray-200">
-                                    {% for substep in step.visible_substeps %}
-                                    <div class="p-2 pl-3 hover:bg-blue-50 cursor-pointer text-sm text-gray-600"
-                                         onclick="selectProjectTask('{{ project.id }}:{{ step_index }}:{{ substep.kanban_substep_index }}', '[{{ project.name }}] {{ substep.name }}')">
-                                        {{ substep.name }}
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
+                            <div class="flex items-center p-2 hover:bg-blue-50 cursor-pointer select-none">
+                                <span class="w-5 h-5 mr-1"></span>
+                                <span class="text-sm flex-1 {% if step.kanban_linked %}text-gray-400 cursor-default{% else %}text-gray-700{% endif %}"
+                                      {% if not step.kanban_linked %}
+                                      onclick="selectProjectTask('{{ project.id }}:{{ step_index }}:-1', '[{{ project.name }}] {{ step.name }}')">
+                                      {% endif %}
+                                    {{ step.name }}
+                                </span>
                             </div>
                             {% endfor %}
                         </div>
@@ -884,6 +864,7 @@
             </div>
             <p class="text-xs text-gray-500 mt-1">Clique nas setas para expandir.<br> Selecione uma tarefa para vincular.</p>
         </div>
+        {% endif %}
         
         <div class="flex justify-end space-x-2">
           <button type="button" onclick="closeModal('createModal')" class="px-3 py-1.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
@@ -1096,7 +1077,7 @@
 
   <!-- View Modal (Summary) -->
   <div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg p-4 w-96 shadow-xl relative">
+    <div class="bg-white rounded-lg p-4 w-[92vw] max-w-4xl shadow-xl relative">
       <div class="flex justify-between items-start mb-3">
         <h2 class="text-xl font-bold flex-1 mr-4" id="viewTitle" style="color: var(--primary-color);"></h2>
         
@@ -1105,8 +1086,8 @@
         </button>
       </div>
       
-      <div class="space-y-4">
-          <!-- Project Info -->
+      <div class="grid items-start gap-2 lg:grid-cols-[30rem_minmax(0,1fr)]">
+        <div class="space-y-4">
           <div id="viewProjectSection" class="hidden mb-4 p-3 bg-blue-50 rounded border border-blue-100">
               <div class="flex flex-col space-y-2">
                    <div>
@@ -1116,10 +1097,6 @@
                    <div id="viewTaskContainer" class="hidden pl-2 border-l-2 border-blue-200">
                       <span class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tarefa</span>
                       <p id="viewTaskName" class="text-sm text-gray-700"></p>
-                   </div>
-                   <div id="viewSubtaskContainer" class="hidden pl-6 border-l-2 border-blue-200">
-                      <span class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Subtarefa</span>
-                      <p id="viewSubtaskName" class="text-sm text-gray-700"></p>
                    </div>
               </div>
           </div>
@@ -1164,6 +1141,19 @@
                   <p id="viewDeliveryDate" class="text-sm font-bold text-green-600"></p>
               </div>
           </div>
+        </div>
+
+        <div id="viewSubtasksPanel" class="hidden flex self-start w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-4 max-h-[18rem] lg:max-h-[24rem]">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Subtarefas</label>
+              <p id="viewSubtasksSummary" class="text-xs text-gray-500"></p>
+            </div>
+            <span id="viewSubtasksPermission" class="hidden rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700"></span>
+          </div>
+          <div id="viewSubtasksList" class="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1"></div>
+          <p id="viewSubtasksEmpty" class="hidden mt-3 text-sm text-gray-500 italic">Esta tarefa nao possui subtarefas.</p>
+        </div>
       </div>
       
       <div class="mt-3 flex justify-between items-center">
@@ -1333,6 +1323,11 @@
     {% include 'partials/confirm_modal.html' %}
   {% endwith %}
 
+  <!-- Subtask Toggle Confirmation Modal -->
+  {% with modal_id='subtaskConfirmModal', message_id='subtaskConfirmMessage', cancel_func='cancelSubtaskToggle()', confirm_func='confirmSubtaskToggle()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
+
   <!-- Permission Error Modal -->
   {% with modal_id='permissionModal', message_id='permissionMessage', cancel_func='closePermissionModal()', confirm_func='closePermissionModal()' %}
     {% include 'partials/confirm_modal.html' %}
@@ -1340,12 +1335,16 @@
 
   <script>
     let pendingMove = null;
+    let pendingSubtaskToggle = null;
     const ARCHIVED_VIEW = "{{ 'true' if archived_view else 'false' }}" === 'true';
     const COLUMN_STATE_KEY = 'kanbanCollapsedColumns';
     const STORAGE_FILE_URL = "{{ url_for('storage_file') }}";
     let currentCardId = null;
     let currentCardNotes = [];
     let currentCardTitle = '';
+    let currentCardSubtasks = [];
+    let currentCardCanToggleSubtasks = false;
+    let currentCardHasProjectTask = false;
     let notesModalFiles = [];
     let notesModalMessageTimeout = null;
     const SELECTED_SPRINT_FILTER = "{{ selected_sprint_id or '' }}";
@@ -1867,7 +1866,6 @@
       
       const projectName = btn.getAttribute('data-project-name');
       const taskName = btn.getAttribute('data-task-name');
-      const subtaskName = btn.getAttribute('data-subtask-name');
       const sprintId = btn.getAttribute('data-sprint-id');
       const sprintName = btn.getAttribute('data-sprint-name');
       const sprintStatusLabel = btn.getAttribute('data-sprint-status-label');
@@ -1891,7 +1889,7 @@
       // Project Info Logic
       const projectSection = document.getElementById('viewProjectSection');
       const taskContainer = document.getElementById('viewTaskContainer');
-      const subtaskContainer = document.getElementById('viewSubtaskContainer');
+      currentCardHasProjectTask = Boolean(projectName && projectName !== 'Desconhecido' && taskName && taskName !== 'None');
       
       if (projectName && projectName !== 'Desconhecido') {
           projectSection.classList.remove('hidden');
@@ -1903,16 +1901,10 @@
           } else {
               taskContainer.classList.add('hidden');
           }
-          
-          if (subtaskName && subtaskName !== 'None') {
-              subtaskContainer.classList.remove('hidden');
-              document.getElementById('viewSubtaskName').innerText = subtaskName;
-          } else {
-              subtaskContainer.classList.add('hidden');
-          }
       } else {
           projectSection.classList.add('hidden');
       }
+      renderViewSubtasksPanel();
       
       const priorityEl = document.getElementById('viewPriority');
       priorityEl.innerText = priority || 'Média';
@@ -1958,6 +1950,18 @@
       const btnArchive = document.getElementById('btnArchive');
       if (btnArchive) {
           btnArchive.href = "{{ url_for('kanban.archive_card_route', card_id='PLACEHOLDER') }}".replace('PLACEHOLDER', id);
+          btnArchive.dataset.loadingApplied = 'false';
+          btnArchive.classList.remove('pointer-events-none', 'opacity-75');
+          btnArchive.removeAttribute('aria-busy');
+          if (btnArchive.dataset.originalHtml) {
+              btnArchive.innerHTML = btnArchive.dataset.originalHtml;
+          } else {
+              btnArchive.dataset.originalHtml = btnArchive.innerHTML;
+          }
+          btnArchive.onclick = function(event) {
+              setActionLinkLoadingState(btnArchive, 'Arquivando...');
+              return true;
+          };
       }
       
       const btnRestore = document.getElementById('btnRestore');
@@ -2039,12 +2043,258 @@
       currentCardId = btn.getAttribute('data-id');
       currentCardTitle = btn.getAttribute('data-title') || '';
       const notesRaw = btn.getAttribute('data-notes') || '[]';
+      const subtasksRaw = btn.getAttribute('data-subtasks') || '[]';
       try {
         currentCardNotes = JSON.parse(notesRaw);
       } catch (error) {
         console.error('Erro ao carregar as notas do card', error);
         currentCardNotes = [];
       }
+      try {
+        currentCardSubtasks = JSON.parse(subtasksRaw);
+      } catch (error) {
+        console.error('Erro ao carregar as subtarefas do card', error);
+        currentCardSubtasks = [];
+      }
+      currentCardCanToggleSubtasks = btn.getAttribute('data-can-toggle-subtasks') === '1';
+    }
+
+    function syncCardSubtasksData(cardId, subtasks) {
+      const serialized = JSON.stringify(Array.isArray(subtasks) ? subtasks : []);
+      document.querySelectorAll(`[data-id="${cardId}"]`).forEach(function(element) {
+        element.setAttribute('data-subtasks', serialized);
+      });
+    }
+
+    function renderViewSubtasksPanel() {
+      const panelEl = document.getElementById('viewSubtasksPanel');
+      const listEl = document.getElementById('viewSubtasksList');
+      const summaryEl = document.getElementById('viewSubtasksSummary');
+      const emptyEl = document.getElementById('viewSubtasksEmpty');
+      const permissionEl = document.getElementById('viewSubtasksPermission');
+      if (!panelEl || !listEl || !summaryEl || !emptyEl || !permissionEl) return;
+
+      if (!currentCardHasProjectTask) {
+        panelEl.classList.add('hidden');
+        listEl.innerHTML = '';
+        emptyEl.classList.add('hidden');
+        permissionEl.classList.add('hidden');
+        permissionEl.textContent = '';
+        return;
+      }
+
+      panelEl.classList.remove('hidden');
+      const subtasks = Array.isArray(currentCardSubtasks) ? currentCardSubtasks : [];
+      const doneCount = subtasks.filter(function(item) { return Boolean(item && item.is_done); }).length;
+      summaryEl.textContent = `${doneCount}/${subtasks.length} concluidas`;
+
+      const canToggle = currentCardCanToggleSubtasks && !ARCHIVED_VIEW;
+      if (ARCHIVED_VIEW) {
+        permissionEl.textContent = 'Card arquivado';
+        permissionEl.classList.remove('hidden');
+      } else if (!currentCardCanToggleSubtasks) {
+        permissionEl.classList.add('hidden');
+        permissionEl.textContent = '';
+      } else {
+        permissionEl.classList.add('hidden');
+        permissionEl.textContent = '';
+      }
+
+      if (!subtasks.length) {
+        listEl.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      listEl.innerHTML = subtasks.map(function(subtask) {
+        const canToggleSubtask = Boolean(subtask && subtask.can_toggle) && !ARCHIVED_VIEW;
+        const checkedAttr = subtask.is_done ? 'checked' : '';
+        const disabledAttr = canToggleSubtask ? '' : 'disabled';
+        const titleClass = subtask.is_done ? 'text-gray-400 line-through' : 'text-gray-700';
+        const itemClass = subtask.is_done ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-white';
+        const completedHtml = subtask.completed_at
+          ? `<p class="mt-1 text-[11px] text-green-700">Concluida em ${escapeHtml(subtask.completed_at)}</p>`
+          : '';
+
+        return `
+          <label class="flex items-start gap-3 rounded-lg border px-3 py-2 ${itemClass} ${canToggleSubtask ? 'cursor-pointer' : 'cursor-default'}">
+            <input
+              type="checkbox"
+              class="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              data-card-id="${escapeHtml(currentCardId)}"
+              data-substep-index="${escapeHtml(subtask.substep_index)}"
+              onchange="toggleViewSubtask(this)"
+              ${checkedAttr}
+              ${disabledAttr}
+            >
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm ${titleClass}">${escapeHtml(subtask.name || 'Subtarefa')}</span>
+              ${completedHtml}
+            </span>
+          </label>
+        `;
+      }).join('');
+    }
+
+    function toggleViewSubtask(checkboxEl) {
+      if (!checkboxEl) return;
+      const cardId = checkboxEl.getAttribute('data-card-id');
+      const substepIndex = checkboxEl.getAttribute('data-substep-index');
+      const checked = checkboxEl.checked;
+      const previousChecked = !checked;
+      const subtask = (Array.isArray(currentCardSubtasks) ? currentCardSubtasks : []).find(function(item) {
+        return String(item && item.substep_index) === String(substepIndex);
+      });
+      const subtaskName = (subtask && subtask.name) ? String(subtask.name) : 'Subtarefa';
+      const modalEl = document.getElementById('subtaskConfirmModal');
+      const messageEl = document.getElementById('subtaskConfirmMessage');
+      if (!modalEl || !messageEl) {
+        checkboxEl.checked = previousChecked;
+        return;
+      }
+
+      pendingSubtaskToggle = {
+        checkboxEl: checkboxEl,
+        cardId: cardId,
+        substepIndex: substepIndex,
+        checked: checked,
+        previousChecked: previousChecked,
+        subtaskName: subtaskName
+      };
+
+      const actionLabel = checked ? 'concluir' : 'reabrir';
+      messageEl.innerHTML = `Deseja ${actionLabel} a subtarefa?<br><span class="block mt-2 text-sm text-gray-700">${escapeHtml(subtaskName)}</span>`;
+      setConfirmModalLoading('subtaskConfirmModal', false);
+      modalEl.classList.remove('hidden');
+    }
+
+    function setConfirmModalLoading(modalId, isLoading, loadingText) {
+      const modalEl = document.getElementById(modalId);
+      if (!modalEl) return;
+      const cancelBtn = modalEl.querySelector('[data-confirm-modal-cancel]');
+      const confirmBtn = modalEl.querySelector('[data-confirm-modal-confirm]');
+      if (confirmBtn && !confirmBtn.dataset.originalText) {
+        confirmBtn.dataset.originalText = confirmBtn.textContent || 'Confirmar';
+      }
+      if (isLoading) {
+        if (cancelBtn) {
+          cancelBtn.disabled = true;
+          cancelBtn.classList.add('opacity-60', 'pointer-events-none');
+        }
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.classList.add('opacity-75', 'pointer-events-none');
+          confirmBtn.textContent = loadingText || 'Aguarde...';
+        }
+        return;
+      }
+
+      if (cancelBtn) {
+        cancelBtn.disabled = false;
+        cancelBtn.classList.remove('opacity-60', 'pointer-events-none');
+      }
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.classList.remove('opacity-75', 'pointer-events-none');
+        confirmBtn.textContent = confirmBtn.dataset.originalText || 'Confirmar';
+      }
+    }
+
+    function setSubtaskRowLoading(checkboxEl, isLoading) {
+      const rowEl = checkboxEl ? checkboxEl.closest('label') : null;
+      if (!rowEl) return;
+      if (isLoading) {
+        rowEl.classList.add('opacity-70');
+        rowEl.style.cursor = 'wait';
+        return;
+      }
+      rowEl.classList.remove('opacity-70');
+      rowEl.style.cursor = '';
+    }
+
+    function cancelSubtaskToggle() {
+      const modalEl = document.getElementById('subtaskConfirmModal');
+      if (pendingSubtaskToggle && pendingSubtaskToggle.checkboxEl) {
+        pendingSubtaskToggle.checkboxEl.checked = Boolean(pendingSubtaskToggle.previousChecked);
+      }
+      pendingSubtaskToggle = null;
+      setConfirmModalLoading('subtaskConfirmModal', false);
+      if (modalEl) {
+        modalEl.classList.add('hidden');
+      }
+    }
+
+    function confirmSubtaskToggle() {
+      if (!pendingSubtaskToggle) {
+        cancelSubtaskToggle();
+        return;
+      }
+
+      const checkboxEl = pendingSubtaskToggle.checkboxEl;
+      const cardId = pendingSubtaskToggle.cardId;
+      const substepIndex = pendingSubtaskToggle.substepIndex;
+      const checked = pendingSubtaskToggle.checked;
+      const previousChecked = pendingSubtaskToggle.previousChecked;
+      const modalEl = document.getElementById('subtaskConfirmModal');
+
+      setConfirmModalLoading('subtaskConfirmModal', true, 'Salvando...');
+      if (checkboxEl) {
+        checkboxEl.disabled = true;
+        setSubtaskRowLoading(checkboxEl, true);
+      }
+
+      const toggleUrl = "{{ url_for('kanban.toggle_card_subtask', card_id='CARD_ID_PLACEHOLDER', substep_index=999999) }}"
+        .replace('CARD_ID_PLACEHOLDER', encodeURIComponent(String(cardId || '')))
+        .replace('999999', encodeURIComponent(String(substepIndex || '0')));
+
+      fetch(toggleUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ checked: checked })
+      })
+        .then(function(response) {
+          return response.json().catch(function() {
+            return {};
+          }).then(function(data) {
+            return { ok: response.ok, data: data };
+          });
+        })
+        .then(function(result) {
+          if (!result.ok || !result.data.success) {
+            throw new Error(result.data.message || 'Nao foi possivel atualizar a subtarefa.');
+          }
+
+          currentCardSubtasks = currentCardSubtasks.map(function(subtask) {
+            if (String(subtask.substep_index) !== String(substepIndex)) {
+              return subtask;
+            }
+            return Object.assign({}, subtask, result.data.subtask || {});
+          });
+          syncCardSubtasksData(cardId, currentCardSubtasks);
+          renderViewSubtasksPanel();
+          pendingSubtaskToggle = null;
+          setConfirmModalLoading('subtaskConfirmModal', false);
+          if (modalEl) {
+            modalEl.classList.add('hidden');
+          }
+        })
+        .catch(function(error) {
+          if (checkboxEl) {
+            checkboxEl.checked = Boolean(previousChecked);
+            checkboxEl.disabled = false;
+            setSubtaskRowLoading(checkboxEl, false);
+          }
+          pendingSubtaskToggle = null;
+          setConfirmModalLoading('subtaskConfirmModal', false);
+          if (modalEl) {
+            modalEl.classList.add('hidden');
+          }
+          window.alert(error.message || 'Nao foi possivel atualizar a subtarefa.');
+        });
     }
 
     function renderNotesModalMessage() {

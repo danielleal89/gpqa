@@ -397,7 +397,9 @@ def _get_project_kanban_cards(project_id):
             t.impedido,
             t.impedimento,
             kc.nome AS coluna_nome,
-            u.name AS responsavel_nome
+            u.name AS responsavel_nome,
+            u.photo AS responsavel_photo,
+            u.color AS responsavel_color
         FROM tarefas t
         LEFT JOIN kanban_colunas kc ON kc.id = t.coluna_id
         LEFT JOIN users u ON u.id = t.responsavel
@@ -413,6 +415,8 @@ def _get_project_kanban_cards(project_id):
         card['column_name'] = card.pop('coluna_nome') or card.get('coluna') or 'Sem coluna'
         card['assigned_to_name'] = card.pop('responsavel_nome') or 'Nao informado'
         card['assigned_to_id'] = str(card.pop('responsavel')) if card.get('responsavel') else ''
+        card['assigned_to_photo'] = card.pop('responsavel_photo') or ''
+        card['assigned_to_color'] = card.pop('responsavel_color') or '#6366f1'
         card['delivery_date_display'] = _format_project_date(card.get('data_entrega'))
         card['start_date_display'] = _format_project_datetime(card.get('data_inicio'))
         card['end_date_display'] = _format_project_datetime(card.get('data_fim'))

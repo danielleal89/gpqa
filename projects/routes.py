@@ -10,18 +10,24 @@ except (ImportError, ValueError):
     from storage import save_upload, delete_file  # type: ignore
 from .models import (
     load_projects, create_project, get_project, update_project_step,
-    update_project_status, update_project_substep, update_substep_details,
+    update_project_status, update_project_substep,
     add_project_substep, add_project_step, update_project_step_name,
     update_project_substep_name, update_project_name, update_project_step_order,
     delete_project_step, delete_project_substep,
     get_status_columns, get_project_status_options,
-    create_project_step_kanban_card, create_project_substep_kanban_card,
-    add_step_kanban_note, add_substep_kanban_note, add_project_documentation, delete_project_documentation
+    create_project_step_kanban_card,
+    add_step_kanban_note, add_project_documentation, delete_project_documentation
 )
 try:
-    from ..kanban.models import get_board_data, get_sprints
+    from ..kanban.models import (
+        get_board_data, get_sprints, get_default_column_slug,
+        get_column_by_slug, DONE_COLUMN_SLUG
+    )
 except (ImportError, ValueError):
-    from kanban.models import get_board_data, get_sprints  # type: ignore
+    from kanban.models import (  # type: ignore
+        get_board_data, get_sprints, get_default_column_slug,
+        get_column_by_slug, DONE_COLUMN_SLUG
+    )
 
 # Configuração para uploads
 UPLOAD_FOLDER = 'static/uploads/projects'
@@ -54,21 +60,6 @@ def _is_async_request():
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 
-def _can_add_substep_note(project, step_index, substep_index):
-    if _is_admin_user():
-        return True
-    if not getattr(current_user, 'is_authenticated', False):
-        return False
-
-    try:
-        substep = project['steps'][step_index]['substeps'][substep_index]
-    except (IndexError, KeyError, TypeError):
-        return False
-
-    kanban_card = substep.get('kanban_card') or {}
-    return str(kanban_card.get('assigned_to_id') or '') == str(getattr(current_user, 'id', ''))
-
-
 def _can_add_step_note(project, step_index):
     if _is_admin_user():
         return True
@@ -82,6 +73,14 @@ def _can_add_step_note(project, step_index):
 
     kanban_card = step.get('kanban_card') or {}
     return str(kanban_card.get('assigned_to_id') or '') == str(getattr(current_user, 'id', ''))
+
+
+def _can_update_step_status(project, step_index):
+    return _can_add_step_note(project, step_index)
+
+
+def _can_update_step_subtasks(project, step_index):
+    return _can_update_step_status(project, step_index)
 
 
 def _build_project_sprint_overview(project_id):
@@ -156,7 +155,7 @@ def _parse_project_date(value):
 def _build_project_dashboard(project, project_sprints):
     steps = project.get('steps', [])
     substeps = [substep for step in steps for substep in step.get('substeps', [])]
-    all_items = steps + substeps
+    progress_items = steps + substeps
     today = datetime.now().date()
     status_columns = get_status_columns()
 
@@ -164,12 +163,12 @@ def _build_project_dashboard(project, project_sprints):
     task_done = sum(1 for step in steps if step.get('status') == 'done')
     subtask_total = len(substeps)
     subtask_done = sum(1 for substep in substeps if substep.get('status') == 'done')
-    items_total = len(all_items)
-    items_done = sum(1 for item in all_items if item.get('status') == 'done')
+    items_total = len(progress_items)
+    items_done = sum(1 for item in progress_items if item.get('status') == 'done')
     linked_cards = [
-        item.get('kanban_card')
-        for item in all_items
-        if item.get('kanban_card')
+        step.get('kanban_card')
+        for step in steps
+        if step.get('kanban_card')
     ]
     linked_cards = [card for card in linked_cards if card]
     linked_cards_total = len(linked_cards)
@@ -191,11 +190,14 @@ def _build_project_dashboard(project, project_sprints):
                 next_due_card = card
 
     status_task_counts = {column['name']: 0 for column in status_columns}
-    status_subtask_counts = {column['name']: 0 for column in status_columns}
     for step in steps:
         status_task_counts[step.get('status_name') or 'Sem status'] = status_task_counts.get(step.get('status_name') or 'Sem status', 0) + 1
-    for substep in substeps:
-        status_subtask_counts[substep.get('status_name') or 'Sem status'] = status_subtask_counts.get(substep.get('status_name') or 'Sem status', 0) + 1
+
+    pending_subtasks = subtask_total - subtask_done
+    status_subtask_counts = {
+        'Nao concluido': pending_subtasks,
+        'Concluido': subtask_done,
+    }
 
     sprint_status_counts = {
         'Planejada': sum(1 for sprint in project_sprints if sprint.get('status') == 'planned'),
@@ -208,9 +210,9 @@ def _build_project_dashboard(project, project_sprints):
         attention_items.append(f'{overdue_cards} card(s) do projeto estao atrasados no Kanban.')
     if linked_cards_impeded:
         attention_items.append(f'{linked_cards_impeded} card(s) estao marcados com impedimento.')
-    missing_kanban_cards = items_total - linked_cards_total
+    missing_kanban_cards = task_total - linked_cards_total
     if missing_kanban_cards:
-        attention_items.append(f'{missing_kanban_cards} item(ns) do projeto ainda nao foram vinculados ao Kanban.')
+        attention_items.append(f'{missing_kanban_cards} tarefa(s) do projeto ainda nao foram vinculadas ao Kanban.')
     if not attention_items:
         attention_items.append('Nenhum alerta principal no momento.')
 
@@ -224,11 +226,15 @@ def _build_project_dashboard(project, project_sprints):
     ]
     subtask_status_breakdown = [
         {
-            'label': column['name'],
-            'count': status_subtask_counts.get(column['name'], 0),
-            'percent': round((status_subtask_counts.get(column['name'], 0) / subtask_total) * 100) if subtask_total else 0,
+            'label': 'Nao concluido',
+            'count': pending_subtasks,
+            'percent': round((pending_subtasks / subtask_total) * 100) if subtask_total else 0,
+        },
+        {
+            'label': 'Concluido',
+            'count': subtask_done,
+            'percent': round((subtask_done / subtask_total) * 100) if subtask_total else 0,
         }
-        for column in status_columns
     ]
     sprint_status_breakdown = [
         {
@@ -322,9 +328,20 @@ def detail(project_id):
 
     project_sprints = _build_project_sprint_overview(project_id)
     can_manage_project = _is_admin_user()
+    subtask_open_status_slug = get_default_column_slug()
+    subtask_done_status_slug = DONE_COLUMN_SLUG
+    subtask_open_column = get_column_by_slug(subtask_open_status_slug) or {}
+    subtask_done_column = get_column_by_slug(subtask_done_status_slug) or {}
+    subtask_status_options = [
+        {'value': subtask_open_status_slug, 'label': 'Nao concluido'},
+        {'value': subtask_done_status_slug, 'label': 'Concluido'},
+    ]
     project['can_manage_project'] = can_manage_project
     for step in project.get('steps', []):
+        can_update_step_status = _can_update_step_status(project, step.get('ordem'))
+        can_update_subtasks = _can_update_step_subtasks(project, step.get('ordem'))
         step['can_edit_name'] = can_manage_project
+        step['can_update_status'] = can_update_step_status
         step['can_add_substep'] = can_manage_project
         step['can_add_to_kanban'] = can_manage_project and not step.get('has_kanban_card')
         can_add_step_note = bool(
@@ -343,22 +360,20 @@ def detail(project_id):
         )
 
         for substep in step.get('substeps', []):
+            is_substep_done = substep.get('status') == subtask_done_status_slug
+            effective_substep_status = subtask_done_status_slug if is_substep_done else subtask_open_status_slug
+            effective_substep_column = subtask_done_column if is_substep_done else subtask_open_column
+
+            substep['status'] = effective_substep_status
+            substep['status_slug'] = effective_substep_status
+            substep['status_name'] = 'Concluido' if is_substep_done else 'Nao concluido'
+            substep['status_theme'] = dict(effective_substep_column.get('theme') or {})
             substep['can_edit_name'] = can_manage_project
-            can_add_note = bool(
-                substep.get('has_kanban_card')
-                and substep.get('kanban_notes_count', 0) < 10
-                and _can_add_substep_note(project, step.get('ordem'), substep.get('ordem'))
-            )
-            substep['can_add_to_kanban'] = can_manage_project and not substep.get('has_kanban_card')
-            substep['can_add_kanban_note'] = can_add_note
-            substep['kanban_note_limit_reached'] = bool(
-                substep.get('has_kanban_card') and substep.get('kanban_notes_count', 0) >= 10
-            )
-            substep['kanban_note_permission_denied'] = bool(
-                substep.get('has_kanban_card')
-                and not can_add_note
-                and not substep['kanban_note_limit_reached']
-            )
+            substep['can_update_status'] = can_update_subtasks
+            substep['can_add_to_kanban'] = False
+            substep['can_add_kanban_note'] = False
+            substep['kanban_note_limit_reached'] = False
+            substep['kanban_note_permission_denied'] = False
 
     project_dashboard = _build_project_dashboard(project, project_sprints)
 
@@ -368,6 +383,7 @@ def detail(project_id):
         project_sprints=project_sprints,
         project_dashboard=project_dashboard,
         status_columns=get_status_columns(),
+        subtask_status_options=subtask_status_options,
         project_status_options=get_project_status_options(),
         open_description=request.args.get('open_description') == '1'
     )
@@ -475,9 +491,16 @@ def remove_documentation(project_id, documentation_id):
 
 @projects_bp.route('/<project_id>/update_step/<int:step_index>', methods=['POST'])
 def update_step(project_id, step_index):
+    project = get_project(project_id)
+    if not project:
+        return redirect(url_for('projects.detail', project_id=project_id))
+    if not _can_update_step_status(project, step_index):
+        flash('Voce nao pode alterar a coluna desta tarefa.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
     status = request.form.get('status')
     update_project_step(project_id, step_index, status)
-    return redirect(url_for('projects.detail', project_id=project_id))
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
 
 @projects_bp.route('/<project_id>/update_name', methods=['POST'])
@@ -572,9 +595,17 @@ def delete_step(project_id, step_index):
 
 @projects_bp.route('/<project_id>/update_substep/<int:step_index>/<int:substep_index>', methods=['POST'])
 def update_substep(project_id, step_index, substep_index):
+    project = get_project(project_id)
+    if not project:
+        return redirect(url_for('projects.detail', project_id=project_id))
+    if not _can_update_step_subtasks(project, step_index):
+        flash('Voce nao pode alterar o status das subtarefas desta tarefa.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
     status = request.form.get('status')
-    update_project_substep(project_id, step_index, substep_index, status)
-    return redirect(url_for('projects.detail', project_id=project_id))
+    normalized_status = DONE_COLUMN_SLUG if status == DONE_COLUMN_SLUG else get_default_column_slug()
+    update_project_substep(project_id, step_index, substep_index, normalized_status)
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
 
 @projects_bp.route('/<project_id>/delete_substep/<int:step_index>/<int:substep_index>', methods=['POST'])
@@ -583,14 +614,14 @@ def delete_substep(project_id, step_index, substep_index):
         if _is_async_request():
             return jsonify({'success': False, 'message': 'Apenas administradores podem excluir subtarefas.'}), 403
         flash('Apenas administradores podem excluir subtarefas.', 'danger')
-        return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
     result = delete_project_substep(project_id, step_index, substep_index)
     if not result.get('success'):
         if _is_async_request():
             return jsonify({'success': False, 'message': 'Nao foi possivel excluir a subtarefa.'}), 400
         flash('Nao foi possivel excluir a subtarefa.', 'danger')
-        return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
     for file_path in result.get('deleted_file_paths', []):
         delete_file(file_path)
@@ -606,12 +637,12 @@ def delete_substep(project_id, step_index, substep_index):
 def update_substep_name(project_id, step_index, substep_index):
     if not _is_admin_user():
         flash('Apenas administradores podem alterar o nome das subtarefas.', 'danger')
-        return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
     substep_name = request.form.get('substep_name')
     if substep_name:
         update_project_substep_name(project_id, step_index, substep_index, substep_name)
-    return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
 
 @projects_bp.route('/<project_id>/update_status', methods=['POST'])
@@ -626,36 +657,9 @@ def update_status(project_id):
 
 
 @projects_bp.route('/<project_id>/update_substep_details/<int:step_index>/<int:substep_index>', methods=['POST'])
-def update_substep_details_route(project_id, step_index, substep_index):
-    notes = request.form.get('notes')
-    links_text = request.form.get('links')
-
-    links = []
-    if links_text:
-        # Separa por nova linha e remove espaços vazios
-        links = [link.strip() for link in links_text.split('\n') if link.strip()]
-
-    uploaded_files = request.files.getlist('images')
-    image_paths = []
-
-    if uploaded_files:
-        for file in uploaded_files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                unique_filename = f"{project_id}_{step_index}_{substep_index}_{filename}"
-                image_paths.append(save_upload(
-                    file,
-                    object_key=f'projects/{unique_filename}',
-                    local_relative_path=f'uploads/projects/{unique_filename}'
-                ))
-
-    # Se não houver upload, passa None para não alterar (ou lista vazia se quisesse limpar, mas o model faz extend)
-    # O model faz extend para imagens. Então passamos apenas as novas.
-    images_to_pass = image_paths if image_paths else []
-
-    update_substep_details(project_id, step_index, substep_index, notes=notes, links=links, new_images=images_to_pass)
-
-    return redirect(url_for('projects.detail', project_id=project_id))
+def update_substep_details_route(project_id, step_index, _substep_index):
+    flash('As subtarefas nao possuem mais a secao de detalhes.', 'info')
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
 
 @projects_bp.route('/<project_id>/add_substep/<int:step_index>', methods=['POST'])
@@ -693,67 +697,15 @@ def add_step_to_kanban(project_id, step_index):
 
 
 @projects_bp.route('/<project_id>/add_substep_to_kanban/<int:step_index>/<int:substep_index>', methods=['POST'])
-def add_substep_to_kanban(project_id, step_index, substep_index):
-    if not _is_admin_user():
-        flash('Apenas administradores podem adicionar subtarefas ao Kanban.', 'danger')
-        return redirect(url_for('projects.detail', project_id=project_id, open_detail=f'{step_index}-{substep_index}'))
-
-    create_project_substep_kanban_card(project_id, step_index, substep_index)
-    return redirect(url_for('projects.detail', project_id=project_id))
+def add_substep_to_kanban(project_id, step_index, _substep_index):
+    flash('Subtarefas nao sao mais adicionadas ao Kanban.', 'info')
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
 
 @projects_bp.route('/<project_id>/add_substep_kanban_note/<int:step_index>/<int:substep_index>', methods=['POST'])
-def add_substep_kanban_note_route(project_id, step_index, substep_index):
-    project = get_project(project_id)
-    if not project:
-        return redirect(url_for('projects.detail', project_id=project_id))
-
-    if not _can_add_substep_note(project, step_index, substep_index):
-        flash('Apenas administradores ou o responsável pela subtarefa podem adicionar notas.', 'danger')
-        return redirect(url_for(
-            'projects.detail',
-            project_id=project_id,
-            open_detail=f'{step_index}-{substep_index}'
-        ))
-
-    note = request.form.get('note')
-    uploaded_files = request.files.getlist('images')
-    image_paths = []
-    valid_files = [file for file in uploaded_files if file and allowed_file(file.filename)]
-
-    if len(valid_files) > 5:
-        return redirect(url_for(
-            'projects.detail',
-            project_id=project_id,
-            open_detail=f'{step_index}-{substep_index}',
-            kanban_note_status='images_limit'
-        ))
-
-    if valid_files:
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        for index, file in enumerate(valid_files):
-            filename = secure_filename(file.filename)
-            unique_filename = f"{project_id}_{step_index}_{substep_index}_{timestamp}_{index}_{filename}"
-            image_paths.append(save_upload(
-                file,
-                object_key=f'kanban_notes/{unique_filename}',
-                local_relative_path=f'uploads/kanban_notes/{unique_filename}'
-            ))
-
-    result = add_substep_kanban_note(
-        project_id,
-        step_index,
-        substep_index,
-        note,
-        current_user.name if getattr(current_user, 'is_authenticated', False) else '',
-        image_paths=image_paths
-    )
-    return redirect(url_for(
-        'projects.detail',
-        project_id=project_id,
-        open_detail=f'{step_index}-{substep_index}',
-        kanban_note_status=result['status']
-    ))
+def add_substep_kanban_note_route(project_id, step_index, _substep_index):
+    flash('Subtarefas nao possuem mais detalhes nem notas do Kanban nesta tela.', 'info')
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
 
 
 @projects_bp.route('/<project_id>/add_step_kanban_note/<int:step_index>', methods=['POST'])

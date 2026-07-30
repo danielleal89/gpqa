@@ -165,7 +165,7 @@
             {{ project.project_status_name }}
           </span>
         </div>
-        <div class="mb-6">
+        <div class="mb-3">
           <div class="w-full bg-gray-200 rounded-full h-2.5">
             {% set total_steps = project.steps|length %}
             {% set completed_steps = project.steps|selectattr("status", "equalto", "done")|list|length %}
@@ -174,8 +174,8 @@
           </div>
           <span class="text-sm text-gray-500 mt-2 block text-right">{{ completed_steps }}/{{ total_steps }} tarefas completas</span>
         </div>
-        <div class="flex justify-center mt-auto pt-2">
-          <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn-new-task w-full justify-center">
+        <div class="flex justify-center mt-auto">
+          <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn-new-task inline-flex w-40 items-center justify-center">
             Ver Detalhes
           </a>
         </div>

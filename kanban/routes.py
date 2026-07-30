@@ -12,9 +12,14 @@ except (ImportError, ValueError):
 from .models import (
     get_board_data, create_card, update_card_position, create_column, update_column, reorder_columns, delete_column,
     update_card_details, delete_card, archive_card, unarchive_card, get_users, add_card_note, get_card_by_id,
-    get_project_tasks_available, get_all_projects, get_default_column_id, get_linked_project_task_refs,
-    get_sprints, create_sprint, update_sprint, delete_sprint, get_sprint_status_options
+    get_project_tasks_available, get_all_projects, get_default_column_id, get_default_column_slug,
+    get_linked_project_task_refs, get_sprints, create_sprint, update_sprint, delete_sprint,
+    get_sprint_status_options, DONE_COLUMN_SLUG
 )
+try:
+    from ..projects.models import get_project, update_project_substep
+except (ImportError, ValueError):
+    from projects.models import get_project, update_project_substep  # type: ignore
 
 kanban_bp = Blueprint('kanban', __name__, template_folder='../pages/kanban')
 
@@ -33,6 +38,19 @@ def _can_edit_card(card):
     return str(card.get('responsavel') or '') == str(getattr(current_user, 'id', ''))
 
 
+def _can_toggle_project_subtask(substep, parent_card=None):
+    if not getattr(current_user, 'is_authenticated', False):
+        return False
+    if getattr(current_user, 'is_admin', False):
+        return True
+
+    kanban_card = (substep or {}).get('kanban_card') or {}
+    assigned_to_id = str(kanban_card.get('assigned_to_id') or '')
+    if not assigned_to_id and parent_card:
+        assigned_to_id = str(parent_card.get('responsavel') or parent_card.get('assigned_to') or '')
+    return assigned_to_id == str(getattr(current_user, 'id', ''))
+
+
 def _redirect_back_with_note(card_id, status):
     fallback_url = url_for('kanban.board')
     referrer = request.referrer or fallback_url
@@ -43,14 +61,11 @@ def _redirect_back_with_note(card_id, status):
     return redirect(urlunparse(parsed._replace(query=urlencode(query))))
 
 
-@kanban_bp.route('/')
-@login_required
-def board():
+def _render_board(archived_view=False):
     selected_user_id = request.args.get('user_id') or ''
     selected_project_id = request.args.get('project_id') or ''
     selected_sprint_id = request.args.get('sprint_id') or ''
     view_mode = request.args.get('view') or 'board'
-    archived_view = request.args.get('archived') == '1'
 
     sprints = get_sprints()
     data = get_board_data(archived=archived_view, sprints=sprints)
@@ -67,16 +82,7 @@ def board():
         for step_index, step in enumerate(project.get('steps', [])):
             step['kanban_step_index'] = step_index
             step['kanban_linked'] = (str(project['id']), step_index, -1) in linked_project_refs
-
-            visible_substeps = []
-            for substep_index, substep in enumerate(step.get('substeps', [])):
-                substep['kanban_substep_index'] = substep_index
-                substep['kanban_linked'] = (str(project['id']), step_index, substep_index) in linked_project_refs
-                if not substep['kanban_linked']:
-                    visible_substeps.append(substep)
-
-            step['visible_substeps'] = visible_substeps
-            step['show_in_kanban_selector'] = (not step['kanban_linked']) or bool(visible_substeps)
+            step['show_in_kanban_selector'] = not step['kanban_linked']
             if step['show_in_kanban_selector']:
                 project_has_available_items = True
 
@@ -96,6 +102,9 @@ def board():
         }
 
     for card in data['cards']:
+        if card.get('project_ref') and int(card['project_ref'].get('substep_index', -1)) != -1:
+            continue
+
         # Filtrar por usuário, se selecionado
         if selected_user_id and str(card.get('assigned_to') or '') != selected_user_id:
             continue
@@ -120,8 +129,10 @@ def board():
             # Enriquecer card com info do usuário
             assigned_user = next((u for u in users if str(u['id']) == str(card.get('assigned_to') or '')), None)
             card['user_obj'] = assigned_user
+            card['subtasks'] = []
+            card['can_toggle_subtasks'] = False
 
-            # Enriquecer com nome do projeto, tarefa e subtarefa
+            # Enriquecer com nome do projeto, tarefa e subtarefas
             if card.get('project_ref'):
                 pid = card['project_ref'].get('project_id')
                 step_idx = card['project_ref'].get('step_index')
@@ -131,23 +142,29 @@ def board():
                 if project:
                     card['project_name'] = project['name']
 
-                    # Get Task Name
                     if step_idx is not None and 0 <= int(step_idx) < len(project.get('steps', [])):
                         step = project['steps'][int(step_idx)]
                         card['task_name'] = step['name']
-
-                        # Get Subtask Name
-                        if substep_idx is not None and int(substep_idx) != -1 and 0 <= int(substep_idx) < len(step.get('substeps', [])):
-                            card['subtask_name'] = step['substeps'][int(substep_idx)]['name']
-                        else:
-                            card['subtask_name'] = None
+                        if substep_idx is not None and int(substep_idx) == -1:
+                            card['subtasks'] = [
+                                {
+                                    'substep_index': substep.get('ordem', sub_index),
+                                    'name': substep.get('name'),
+                                    'is_done': substep.get('status') == DONE_COLUMN_SLUG,
+                                    'completed_at': substep.get('completed_at') or '',
+                                    'can_toggle': _can_toggle_project_subtask(substep, parent_card=card),
+                                }
+                                for sub_index, substep in enumerate(step.get('substeps', []))
+                            ]
+                            card['can_toggle_subtasks'] = any(
+                                bool(subtask.get('can_toggle'))
+                                for subtask in card['subtasks']
+                            )
                     else:
                         card['task_name'] = None
-                        card['subtask_name'] = None
                 else:
                     card['project_name'] = 'Desconhecido'
                     card['task_name'] = None
-                    card['subtask_name'] = None
 
             if card.get('sprint') and card['sprint'].get('project_id'):
                 sprint_project = projects_dict.get(card['sprint']['project_id'])
@@ -177,6 +194,22 @@ def board():
         view_mode=view_mode,
         archived_view=archived_view
     )
+
+
+@kanban_bp.route('/')
+@login_required
+def board():
+    if request.args.get('archived') == '1':
+        query = dict(parse_qsl(urlparse(request.url).query, keep_blank_values=True))
+        query.pop('archived', None)
+        return redirect(url_for('kanban.archived_board', **query))
+    return _render_board(archived_view=False)
+
+
+@kanban_bp.route('/arquivados')
+@login_required
+def archived_board():
+    return _render_board(archived_view=True)
 
 
 @kanban_bp.route('/columns/create', methods=['POST'])
@@ -275,6 +308,7 @@ def remove_user(_user_id):
 
 
 @kanban_bp.route('/card/create', methods=['POST'])
+@login_required
 def add_card():
     title = request.form.get('title')
     description = request.form.get('description')
@@ -288,10 +322,18 @@ def add_card():
     impedimento = request.form.get('impedimento') or None
     project_task_ref = request.form.get('project_task_ref')  # formato "projId:stepIdx:subIdx"
 
+    if not getattr(current_user, 'is_admin', False):
+        assigned_to = str(getattr(current_user, 'id', ''))
+        sprint_id = None
+        project_task_ref = None
+
     project_ref = None
     if project_task_ref:
         parts = project_task_ref.split(':')
         if len(parts) == 3:
+            if int(parts[2]) != -1:
+                flash('Subtarefas nao podem mais ser adicionadas ao Kanban.', 'danger')
+                return redirect(url_for('kanban.board'))
             project_ref = {
                 'project_id': parts[0],
                 'step_index': int(parts[1]),
@@ -312,6 +354,73 @@ def add_card():
             flash('Nao foi possivel criar a tarefa. Verifique o responsavel e a sprint selecionados.', 'danger')
 
     return redirect(url_for('kanban.board'))
+
+
+@kanban_bp.route('/card/<card_id>/subtask/<int:substep_index>/toggle', methods=['POST'])
+@login_required
+def toggle_card_subtask(card_id, substep_index):
+    card = get_card_by_id(card_id)
+    if not card:
+        return jsonify({'success': False, 'message': 'Card nao encontrado.'}), 404
+
+    project_id = card.get('project_id')
+    step_index = card.get('step_index')
+    card_substep_index = card.get('substep_index')
+    if not project_id or step_index is None or card_substep_index is None or int(card_substep_index) != -1:
+        return jsonify({'success': False, 'message': 'Este card nao representa uma tarefa vinculada a projeto.'}), 400
+
+    project = get_project(project_id)
+    if not project:
+        return jsonify({'success': False, 'message': 'Projeto nao encontrado.'}), 404
+
+    target_substep = None
+    for step in project.get('steps', []):
+        if int(step.get('ordem', -1)) != int(step_index):
+            continue
+        for substep in step.get('substeps', []):
+            if int(substep.get('ordem', -1)) == int(substep_index):
+                target_substep = substep
+                break
+        if target_substep:
+            break
+
+    if not target_substep:
+        return jsonify({'success': False, 'message': 'Subtarefa nao encontrada.'}), 404
+    if not _can_toggle_project_subtask(target_substep, parent_card=card):
+        return jsonify({'success': False, 'message': 'Voce nao tem permissao para alterar esta subtarefa.'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    checked_value = payload.get('checked')
+    checked = checked_value is True or str(checked_value).lower() in {'1', 'true', 'on', 'yes'}
+    target_status = DONE_COLUMN_SLUG if checked else get_default_column_slug()
+
+    updated_project = update_project_substep(project_id, int(step_index), substep_index, target_status, sync_kanban=False)
+    if not updated_project:
+        return jsonify({'success': False, 'message': 'Nao foi possivel atualizar a subtarefa.'}), 400
+
+    updated_substep = None
+    for step in updated_project.get('steps', []):
+        if int(step.get('ordem', -1)) != int(step_index):
+            continue
+        for substep in step.get('substeps', []):
+            if int(substep.get('ordem', -1)) == int(substep_index):
+                updated_substep = substep
+                break
+        if updated_substep:
+            break
+
+    if not updated_substep:
+        return jsonify({'success': False, 'message': 'Subtarefa nao encontrada apos a atualizacao.'}), 404
+
+    return jsonify({
+        'success': True,
+        'subtask': {
+            'substep_index': int(updated_substep.get('ordem', substep_index)),
+            'name': updated_substep.get('name'),
+            'is_done': updated_substep.get('status') == DONE_COLUMN_SLUG,
+            'completed_at': updated_substep.get('completed_at') or '',
+        }
+    })
 
 
 @kanban_bp.route('/card/move', methods=['POST'])
@@ -463,11 +572,11 @@ def archive_card_route(card_id):
 def unarchive_card_route(card_id):
     if not current_user.is_admin:
         flash('Apenas administradores podem restaurar tarefas.', 'danger')
-        return redirect(url_for('kanban.board', archived=1))
+        return redirect(url_for('kanban.archived_board'))
 
     unarchive_card(card_id)
     flash('Tarefa restaurada com sucesso.', 'success')
-    return redirect(url_for('kanban.board', archived=1))
+    return redirect(url_for('kanban.archived_board'))
 
 
 @kanban_bp.route('/card/delete/<card_id>')
@@ -481,6 +590,6 @@ def remove_card(card_id):
     flash('Tarefa excluída com sucesso.', 'success')
 
     if request.args.get('redirect_archived'):
-        return redirect(url_for('kanban.board', archived=1))
+        return redirect(url_for('kanban.archived_board'))
 
     return redirect(url_for('kanban.board'))

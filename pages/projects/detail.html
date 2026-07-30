@@ -212,6 +212,9 @@
         align-items: center;
         justify-content: flex-end;
     }
+    .task-grid-kanban {
+        gap: 0.5rem;
+    }
     .task-grid-kanban form,
     .task-grid-status form {
         margin: 0;
@@ -219,6 +222,36 @@
     .task-grid-status form,
     .task-grid-kanban form {
         flex-shrink: 0;
+    }
+    .task-kanban-user-badge {
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: 1px solid #d1d5db;
+        background-color: #eef2ff;
+        color: #3730a3;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        overflow: hidden;
+    }
+    .task-kanban-user-badge.has-photo {
+        border: 0;
+        background-color: transparent;
+    }
+    .task-kanban-user-badge.is-empty {
+        background-color: #f3f4f6;
+        color: #9ca3af;
+        border-color: #e5e7eb;
+    }
+    .task-kanban-user-badge img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
     .detail-actions {
         display: flex;
@@ -270,15 +303,20 @@
     .subtask-grid-main {
         min-width: 0;
     }
-    .subtask-grid-kanban,
+    .subtask-grid-completed {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-height: 1.5rem;
+    }
     .subtask-grid-status,
-    .subtask-grid-details {
+    .subtask-grid-actions {
         display: flex;
         align-items: center;
         justify-content: flex-end;
     }
-    .subtask-grid-kanban form,
-    .subtask-grid-status form {
+    .subtask-grid-status form,
+    .subtask-grid-actions form {
         margin: 0;
     }
     .documentation-type-option input:checked + span {
@@ -394,9 +432,9 @@
         .task-grid-kanban,
         .task-grid-status,
         .task-grid-details,
-        .subtask-grid-kanban,
+        .subtask-grid-completed,
         .subtask-grid-status,
-        .subtask-grid-details {
+        .subtask-grid-actions {
             justify-content: flex-start;
         }
     }
@@ -672,24 +710,19 @@
     <section id="projectViewOverview" data-project-view-panel>
     <div class="project-metric-grid mb-6">
         <div class="project-metric-card">
-            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Progresso Geral</p>
+            <p class="text-xs font-bold tracking-wide text-gray-500">Progresso Geral</p>
             <p class="mt-2 text-3xl font-bold text-primary">{{ project_dashboard.overall_progress_percent }}%</p>
             <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.items_done }}/{{ project_dashboard.items_total }} itens concluídos</p>
         </div>
         <div class="project-metric-card">
-            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Tarefas</p>
+            <p class="text-xs font-bold tracking-wide text-gray-500">Tarefas</p>
             <p class="mt-2 text-3xl font-bold text-gray-800">{{ project_dashboard.task_done }}/{{ project_dashboard.task_total }}</p>
             <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.task_progress_percent }}% das tarefas concluídas</p>
         </div>
         <div class="project-metric-card">
-            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Subtarefas</p>
+            <p class="text-xs font-bold tracking-wide text-gray-500">Subtarefas</p>
             <p class="mt-2 text-3xl font-bold text-gray-800">{{ project_dashboard.subtask_done }}/{{ project_dashboard.subtask_total }}</p>
             <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.subtask_progress_percent }}% das subtarefas concluídas</p>
-        </div>
-        <div class="project-metric-card">
-            <p class="text-xs font-bold uppercase tracking-wide text-gray-500">Kanban</p>
-            <p class="mt-2 text-3xl font-bold text-gray-800">{{ project_dashboard.linked_cards_total }}</p>
-            <p class="mt-1 text-sm text-gray-500">{{ project_dashboard.linked_cards_progress_percent }}% dos cards vinculados estão concluídos</p>
         </div>
     </div>
     <div class="bg-white rounded-lg shadow-md project-section-card">
@@ -752,6 +785,19 @@
                     </div>
                     
                     <div class="task-grid-kanban">
+                        {% if step.has_kanban_card and step.kanban_card and step.kanban_card.assigned_to_name and step.kanban_card.assigned_to_name != 'Nao informado' %}
+                        <span class="task-kanban-user-badge{% if step.kanban_card.assigned_to_photo %} has-photo{% endif %}" data-user-color="{{ step.kanban_card.assigned_to_color or '#6366f1' }}" title="{{ step.kanban_card.assigned_to_name }}">
+                            {% if step.kanban_card.assigned_to_photo %}
+                            <img src="data:image/png;base64,{{ step.kanban_card.assigned_to_photo }}" alt="{{ step.kanban_card.assigned_to_name }}">
+                            {% else %}
+                            {{ step.kanban_card.assigned_to_name[:2].upper() }}
+                            {% endif %}
+                        </span>
+                        {% else %}
+                        <span class="task-kanban-user-badge is-empty" title="Sem responsavel">
+                            ?
+                        </span>
+                        {% endif %}
                         {% if step.has_kanban_card %}
                         <button type="button" class="kanban-link-btn is-linked" disabled>
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -771,6 +817,7 @@
                         {% endif %}
                     </div>
                     <div class="task-grid-status">
+                        {% if step.can_update_status %}
                         <form action="{{ url_for('projects.update_step', project_id=project.id, step_index=step_index) }}" method="POST">
                             <div class="status-select-wrap">
                                 <select name="status" class="status-select status-select-sm js-status-change-select"
@@ -785,6 +832,12 @@
                                 </svg>
                             </div>
                         </form>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                            data-theme-bg="{{ step.status_theme.pill_bg }}" data-theme-color="{{ step.status_theme.pill_text }}" data-theme-border="{{ step.status_theme.border }}">
+                            {{ step.status_name }}
+                        </span>
+                        {% endif %}
                     </div>
                     <div class="task-grid-details">
                         <div class="detail-actions">
@@ -979,7 +1032,6 @@
                     <div class="space-y-1">
                         {% for substep in step.substeps %}
                         {% set substep_index = substep.ordem %}
-                        {% set detail_key = step_index ~ '-' ~ substep_index %}
                         <div class="border-b border-gray-100 last:border-0 pb-1">
                             <div class="subtask-grid-row px-2 py-1 rounded hover:bg-gray-50">
                                 <div class="flex items-center subtask-grid-main">
@@ -1003,37 +1055,21 @@
                                     {% else %}
                                     <span class="inline-step-name-display text-sm {% if substep.status == 'done' %}text-gray-400 line-through{% else %}text-gray-700{% endif %}">{{ substep.name }}</span>
                                     {% endif %}
-                                    {% if substep.status == 'done' and substep.completed_at %}
-                                    <span class="text-xs font-normal ml-2" data-theme-color="{{ substep.status_theme.pill_text }}">({{ substep.completed_at }})</span>
-                                    {% endif %}
                                 </div>
-                                <div class="subtask-grid-kanban">
-                                    {% if substep.has_kanban_card %}
-                                    <button type="button" class="kanban-link-btn is-linked" disabled>
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Kanban
-                                    </button>
-                                    {% elif substep.can_add_to_kanban %}
-                                    <form action="{{ url_for('projects.add_substep_to_kanban', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" class="js-kanban-add-form" data-item-label="subtarefa" data-item-name="{{ substep.name }}">
-                                        <button type="submit" class="kanban-link-btn">
-                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                            </svg>
-                                            Kanban
-                                        </button>
-                                    </form>
+                                <div class="subtask-grid-completed">
+                                    {% if substep.status == 'done' and substep.completed_at %}
+                                    <span class="text-xs font-normal whitespace-nowrap" data-theme-color="{{ substep.status_theme.pill_text }}">({{ substep.completed_at }})</span>
                                     {% endif %}
                                 </div>
                                 <div class="subtask-grid-status">
+                                    {% if substep.can_update_status %}
                                     <form action="{{ url_for('projects.update_substep', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST">
                                         <div class="status-select-wrap">
                                             <select name="status" class="status-select status-select-sm js-status-change-select"
                                                 data-item-label="subtarefa"
                                                 data-theme-bg="{{ substep.status_theme.pill_bg }}" data-theme-color="{{ substep.status_theme.pill_text }}" data-theme-border="{{ substep.status_theme.border }}">
-                                                {% for status_column in status_columns %}
-                                                <option value="{{ status_column.slug }}" {% if substep.status == status_column.slug %}selected{% endif %}>{{ status_column.name }}</option>
+                                                {% for status_option in subtask_status_options %}
+                                                <option value="{{ status_option.value }}" {% if substep.status == status_option.value %}selected{% endif %}>{{ status_option.label }}</option>
                                                 {% endfor %}
                                             </select>
                                             <svg class="status-select-arrow h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -1041,145 +1077,22 @@
                                             </svg>
                                         </div>
                                     </form>
+                                    {% else %}
+                                    <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                                        data-theme-bg="{{ substep.status_theme.pill_bg }}" data-theme-color="{{ substep.status_theme.pill_text }}" data-theme-border="{{ substep.status_theme.border }}">
+                                        {{ substep.status_name }}
+                                    </span>
+                                    {% endif %}
                                 </div>
-                                <div class="subtask-grid-details">
-                                    <div class="detail-actions">
-                                        <button type="button" onclick="toggleElement('details-{{ step_index }}-{{ substep_index }}')" class="detail-action-btn">
-                                            Detalhes
-                                        </button>
-                                        <span class="detail-toggle-spacer" aria-hidden="true"></span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Detalhes do Subpasso -->
-                            <div id="details-{{ step_index }}-{{ substep_index }}" class="hidden p-4 bg-gray-50 border-t border-gray-100 ml-4 border-l-2 border-blue-200 mt-2 text-sm">
-                                {% if project.can_manage_project %}
-                                <div class="mb-4">
+                                <div class="subtask-grid-actions">
+                                    {% if project.can_manage_project %}
                                     <form action="{{ url_for('projects.delete_substep', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" class="js-delete-subtask-form inline-block" data-delete-subtask-form data-step-index="{{ step_index }}" data-substep-index="{{ substep_index }}" data-subtask-name="{{ substep.name }}">
-                                        <button type="submit" class="text-xs px-3 py-2 rounded border border-red-200 bg-red-50 font-semibold text-red-700 transition hover:bg-red-100">
-                                            Excluir subtarefa
+                                        <button type="submit" class="text-xs px-3 py-1.5 rounded border border-red-200 bg-red-50 font-semibold text-red-700 transition hover:bg-red-100">
+                                            Excluir
                                         </button>
                                     </form>
-                                </div>
-                                {% endif %}
-                                {% if substep.has_kanban_card and substep.kanban_card %}
-                                <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
-                                    <div class="flex items-center justify-between gap-3 mb-3">
-                                        <h5 class="text-xs font-bold text-gray-500 uppercase tracking-wide">Task no Kanban</h5>
-                                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full border"
-                                            data-theme-bg="{{ substep.status_theme.pill_bg }}" data-theme-color="{{ substep.status_theme.pill_text }}" data-theme-border="{{ substep.status_theme.border }}">
-                                            {{ substep.kanban_card.column_name }}
-                                        </span>
-                                    </div>
-                                    <div class="grid gap-2 md:grid-cols-2 text-sm">
-                                        <div>
-                                            <span class="font-semibold text-gray-600">Titulo:</span>
-                                            <span class="text-gray-800">{{ substep.kanban_card.title }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-semibold text-gray-600">Responsavel:</span>
-                                            <span class="text-gray-800">{{ substep.kanban_card.assigned_to_name }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-semibold text-gray-600">Prioridade:</span>
-                                            <span class="text-gray-800">{{ substep.kanban_card.prioridade or 'Nao informado' }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-semibold text-gray-600">Inicio:</span>
-                                            <span class="text-gray-800">{{ substep.kanban_card.start_date_display or 'Nao informado' }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-semibold text-gray-600">Fim:</span>
-                                            <span class="text-gray-800">{{ substep.kanban_card.end_date_display or 'Nao informado' }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-semibold text-gray-600">Entrega:</span>
-                                            <span class="text-gray-800">{{ substep.kanban_card.delivery_date_display or 'Nao informado' }}</span>
-                                        </div>
-                                        <div class="md:col-span-2">
-                                            <span class="font-semibold text-gray-600">Impedimento:</span>
-                                            <span class="text-gray-800">
-                                                {% if substep.kanban_card.impedido %}
-                                                {{ substep.kanban_card.impedimento or 'Marcado como impedido' }}
-                                                {% else %}
-                                                Nenhum
-                                                {% endif %}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    {% if substep.kanban_card.description %}
-                                    <div class="mt-3 border-t border-gray-100 pt-3">
-                                        <h6 class="text-xs font-bold text-gray-500 uppercase mb-1">Descricao</h6>
-                                        <p class="text-gray-700 whitespace-pre-wrap">{{ substep.kanban_card.description }}</p>
-                                    </div>
                                     {% endif %}
                                 </div>
-
-                                    <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
-                                    <div class="flex items-center justify-between gap-3 mb-3">
-                                        <div class="flex items-center gap-3">
-                                            <h5 class="text-xs font-bold text-gray-500 tracking-wide">Anotações</h5>
-                                            <span class="text-xs font-semibold text-gray-500">{{ substep.kanban_notes_count }}/10</span>
-                                        </div>
-                                        {% if substep.can_add_kanban_note %}
-                                        <button type="button" onclick="toggleElement('kanban-note-form-{{ detail_key }}')" class="text-xs btn-secondary-action px-2 py-1 flex items-center">
-                                            <span class="mr-1">+</span> Nota
-                                        </button>
-                                        {% endif %}
-                                    </div>
-
-                                    {% if substep.kanban_notes %}
-                                    <div class="mb-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                                        {% for kanban_note in substep.kanban_notes %}
-                                        <div class="rounded border border-gray-200 bg-gray-50 px-3 py-2">
-                                            <div class="flex items-center justify-between gap-3 mb-1">
-                                                <span class="text-[11px] text-gray-400">{{ kanban_note.created_by_name or 'Nao informado' }}</span>
-                                                <span class="text-xs text-gray-400">{{ kanban_note.created_at_display }}</span>
-                                            </div>
-                                            <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ kanban_note.note }}</p>
-                                            {% if kanban_note.images %}
-                                            <div class="mt-3 flex flex-wrap gap-2">
-                                                {% for img in kanban_note.images %}
-                                                <button type="button" data-image-src="{{ storage_url(img) }}" onclick="openImagePreviewModal(this.dataset.imageSrc)" class="block overflow-hidden rounded border border-gray-300">
-                                                    <img src="{{ storage_url(img) }}" class="h-14 w-14 object-cover hover:opacity-75">
-                                                </button>
-                                                {% endfor %}
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                    {% else %}
-                                    <p class="text-sm text-gray-400 italic mb-3">Nenhuma nota criada para esta task no Kanban.</p>
-                                    {% endif %}
-
-                                    {% if substep.can_add_kanban_note %}
-                                    <div id="kanban-note-form-{{ detail_key }}" class="hidden border-t border-gray-100 pt-3">
-                                        <form action="{{ url_for('projects.add_substep_kanban_note_route', project_id=project.id, step_index=step_index, substep_index=substep_index) }}" method="POST" enctype="multipart/form-data" class="js-kanban-note-form" data-max-images="5">
-                                            <label class="block text-xs font-bold text-gray-700 mb-1">Nova nota</label>
-                                            <textarea name="note" rows="2" maxlength="500" class="w-full text-sm border border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none" placeholder="Digite uma nota para esta task do Kanban"></textarea>
-                                            <div class="mt-3">
-                                                <input type="file" name="images" multiple accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 js-kanban-note-images-input">
-                                                <p class="text-xs text-gray-400 mt-1">Voce pode anexar ate 5 imagens na mesma nota.</p>
-                                                <div class="mt-3 hidden js-kanban-note-images-preview"></div>
-                                            </div>
-                                            <div class="mt-3 flex justify-end">
-                                                <button type="submit" class="text-xs btn-primary-action px-4 py-1.5 font-medium">Salvar nota</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                    {% elif substep.kanban_note_permission_denied %}
-                                    <p class="text-xs font-medium text-gray-500 border-t border-gray-100 pt-3">Somente administradores ou o responsável por esta subtarefa podem adicionar notas.</p>
-                                    {% else %}
-                                    <p class="text-xs font-medium text-gray-500 border-t border-gray-100 pt-3">Limite de 10 notas atingido para esta task do Kanban.</p>
-                                    {% endif %}
-                                </div>
-                                {% else %}
-                                <div class="mb-4 rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-500">
-                                    Esta subtarefa ainda nao foi criada no Kanban.
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -1471,6 +1384,16 @@
             }
             if (element.dataset.themeBorder) {
                 element.style.borderColor = element.dataset.themeBorder;
+            }
+        });
+    }
+
+    function applyUserAvatarStyles() {
+        document.querySelectorAll('.task-kanban-user-badge[data-user-color]').forEach(function(element) {
+            if (!element.classList.contains('is-empty') && element.dataset.userColor) {
+                element.style.backgroundColor = element.dataset.userColor;
+                element.style.borderColor = element.dataset.userColor;
+                element.style.color = '#ffffff';
             }
         });
     }
@@ -2263,6 +2186,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         applyThemeStyles();
+        applyUserAvatarStyles();
         restoreTaskSectionStates();
         restoreOpenTaskFromUrl();
         restoreOpenDetailFromUrl();
