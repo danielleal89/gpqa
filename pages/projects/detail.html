@@ -562,7 +562,7 @@
                             <input id="projectDocumentationLink" type="url" name="link_url" placeholder="https://exemplo.com/documentacao" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
                         </div>
                         <div class="flex justify-end">
-                            <button type="submit" class="text-xs btn-primary-action px-4 py-2">Salvar documentação</button>
+                            <button type="submit" class="text-xs btn-primary-action px-4 py-2 submit-loading-btn" data-loading-submit data-loading-text="Salvando...">Salvar documentação</button>
                         </div>
                     </form>
                 </div>
@@ -955,16 +955,39 @@
                             </div>
 
                             {% if step.kanban_notes %}
-                            <div class="mb-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                            <div class="mb-3 max-h-72 grid grid-cols-1 md:grid-cols-2 gap-2 overflow-y-auto pr-1">
                                 {% for kanban_note in step.kanban_notes %}
-                                <div class="rounded border border-gray-200 bg-gray-50 px-3 py-2">
-                                    <div class="flex items-center justify-between gap-3 mb-1">
-                                        <span class="text-[11px] text-gray-400">{{ kanban_note.created_by_name or 'Nao informado' }}</span>
-                                        <span class="text-xs text-gray-400">{{ kanban_note.created_at_display }}</span>
+                                <div class="rounded border border-gray-200 bg-gray-50 px-3 py-2 flex flex-col">
+                                    <div class="flex items-start justify-between gap-2 mb-1">
+                                        <div class="flex flex-col min-w-0 flex-1">
+                                            <span class="text-[11px] text-gray-400 truncate">{{ kanban_note.created_by_name or 'Nao informado' }}</span>
+                                            <span class="text-[10px] text-gray-400">{{ kanban_note.created_at_display }}</span>
+                                        </div>
+                                        {% if kanban_note.can_edit_delete %}
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <button type="button" class="inline-icon-btn m-0 p-0.5 js-edit-note-btn" title="Editar nota" aria-label="Editar nota"
+                                                data-step-index="{{ step_index }}"
+                                                data-note-id="{{ kanban_note.id }}"
+                                                data-note-text="{{ (kanban_note.note or '') | forceescape }}"
+                                                data-image-urls='{{ (kanban_note.image_urls or []) | tojson }}'
+                                                data-image-paths='{{ (kanban_note.images or []) | tojson }}'>
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L12 14l-4 1 1-4 7.5-7.5z" />
+                                                </svg>
+                                            </button>
+                                            <form action="{{ url_for('projects.delete_step_kanban_note_route', project_id=project.id, step_index=step_index, note_id=kanban_note.id) }}" method="POST" class="js-delete-note-form inline-block" data-delete-note-form data-step-index="{{ step_index }}" data-note-id="{{ kanban_note.id }}" onsubmit="return showDeleteNoteModal(event, this)">
+                                                <button type="submit" class="inline-icon-btn m-0 p-0.5 text-red-500 hover:text-red-700" title="Excluir nota" aria-label="Excluir nota">
+                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% endif %}
                                     </div>
-                                    <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ kanban_note.note }}</p>
+                                    <p class="text-sm text-gray-700 whitespace-pre-wrap break-words">{{ kanban_note.note }}</p>
                                     {% if kanban_note.images %}
-                                    <div class="mt-3 flex flex-wrap gap-2">
+                                    <div class="mt-2 flex flex-wrap gap-2">
                                         {% for img in kanban_note.images %}
                                         <button type="button" data-image-src="{{ storage_url(img) }}" onclick="openImagePreviewModal(this.dataset.imageSrc)" class="block overflow-hidden rounded border border-gray-300">
                                             <img src="{{ storage_url(img) }}" class="h-14 w-14 object-cover hover:opacity-75">
@@ -989,7 +1012,7 @@
                                         <div class="mt-3 hidden js-kanban-note-images-preview"></div>
                                     </div>
                                     <div class="mt-3 flex justify-end">
-                                        <button type="submit" class="text-xs btn-primary-action px-4 py-1.5 font-medium">Salvar nota</button>
+                                        <button type="submit" class="text-xs btn-primary-action px-4 py-1.5 font-medium submit-loading-btn" data-loading-submit data-loading-text="Salvando...">Salvar nota</button>
                                     </div>
                                 </form>
                             </div>
@@ -1248,6 +1271,39 @@
   {% with modal_id='deleteSubtaskConfirmModal', message_id='deleteSubtaskConfirmMessage', cancel_func='cancelDeleteSubtask()', confirm_func='confirmDeleteSubtask()' %}
     {% include 'partials/confirm_modal.html' %}
   {% endwith %}
+  {% with modal_id='deleteNoteConfirmModal', message_id='deleteNoteConfirmMessage', cancel_func='cancelDeleteNote()', confirm_func='confirmDeleteNote()' %}
+    {% include 'partials/confirm_modal.html' %}
+  {% endwith %}
+
+  <div id="editNoteModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-lg p-5 w-[92%] max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <h3 class="text-lg font-bold text-primary">Editar nota</h3>
+        <button type="button" onclick="closeEditNoteModal()" class="inline-icon-btn m-0 shrink-0" title="Fechar" aria-label="Fechar">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form id="editNoteForm" action="" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="remove_images" id="editNoteRemoveImages" value="[]">
+        <div>
+          <label for="editNoteText" class="block text-xs font-bold text-gray-700 mb-1">Texto da nota</label>
+          <textarea id="editNoteText" name="note" rows="4" maxlength="500" class="w-full text-sm border border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none"></textarea>
+        </div>
+        <div id="editNoteExistingImages" class="mt-4"></div>
+        <div class="mt-4">
+          <label class="block text-xs font-bold text-gray-700 mb-1">Adicionar novas imagens (max. 5 total)</label>
+          <input type="file" name="images" id="editNoteNewImages" multiple accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <div id="editNoteNewImagesPreview" class="mt-3 hidden"></div>
+        </div>
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" onclick="closeEditNoteModal()" class="text-xs px-4 py-2 font-bold text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+          <button type="submit" class="text-xs btn-primary-action px-4 py-2 submit-loading-btn" data-loading-submit data-loading-text="Salvando...">Salvar alteracoes</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div id="imagePreviewModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black bg-opacity-80" onclick="closeImagePreviewModal()">
     <div class="relative flex max-h-[92vh] max-w-[92vw] items-center justify-center p-4" onclick="event.stopPropagation()">
@@ -1263,6 +1319,8 @@
     let pendingKanbanAdd = null;
     let pendingDeleteTask = null;
     let pendingDeleteSubtask = null;
+    let pendingDeleteNote = null;
+    let editNoteContext = { stepIndex: null, noteId: null, existingImages: [], removeImages: [] };
     const taskSectionStorageKey = 'project-task-sections-{{ project.id }}';
     const projectViewStorageKey = 'project-detail-view-{{ project.id }}';
     const taskOrderStorageKey = 'project-task-order-{{ project.id }}';
@@ -2184,6 +2242,351 @@
         });
     }
 
+    function openEditNoteModal(stepIndex, noteId, noteText, imageUrls, imagePaths) {
+        try {
+            const modalEl = document.getElementById('editNoteModal');
+            const formEl = document.getElementById('editNoteForm');
+            const textEl = document.getElementById('editNoteText');
+            const removeImagesEl = document.getElementById('editNoteRemoveImages');
+            if (!modalEl || !formEl || !textEl || !removeImagesEl) {
+                return;
+            }
+
+            const urls = Array.isArray(imageUrls) ? imageUrls : [];
+            const paths = Array.isArray(imagePaths) ? imagePaths : [];
+            const combined = [];
+            const len = Math.max(urls.length, paths.length);
+            for (let i = 0; i < len; i++) {
+                combined.push({
+                    path: (paths[i] || urls[i] || '').toString(),
+                    url: (urls[i] || paths[i] || '').toString()
+                });
+            }
+
+            editNoteContext = {
+                stepIndex: stepIndex,
+                noteId: noteId,
+                existingImages: combined,
+                removeImages: []
+            };
+
+            formEl.action = `/projetos/{{ project.id }}/update_step_kanban_note/${stepIndex}/${noteId}`;
+            textEl.value = noteText || '';
+            removeImagesEl.value = '[]';
+
+            renderEditNoteExistingImages();
+            renderEditNoteNewImagesPreview([]);
+
+            const newImagesInput = document.getElementById('editNoteNewImages');
+            if (newImagesInput) {
+                newImagesInput.value = '';
+                formEl._editNoteNewFiles = [];
+            }
+
+            modalEl.classList.add('flex');
+            modalEl.classList.remove('hidden');
+        } catch (err) {
+            console.error('Erro ao abrir modal de edicao de nota:', err);
+            alert('Nao foi possivel abrir a edicao da nota.');
+        }
+    }
+
+    function parseJsonOrEmpty(value, fallback) {
+        if (value === null || value === undefined || value === '') {
+            return fallback;
+        }
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : fallback;
+        } catch (err) {
+            return fallback;
+        }
+    }
+
+    function setupEditNoteButtons() {
+        const buttons = document.querySelectorAll('.js-edit-note-btn');
+        if (!buttons || !buttons.length) {
+            return;
+        }
+        buttons.forEach(function(btn) {
+            if (btn._editNoteListenerBound) {
+                return;
+            }
+            btn._editNoteListenerBound = true;
+            btn.addEventListener('click', function(event) {
+                event.preventDefault();
+                const stepIndex = btn.getAttribute('data-step-index');
+                const noteId = btn.getAttribute('data-note-id');
+                const noteText = btn.getAttribute('data-note-text') || '';
+                const imageUrls = parseJsonOrEmpty(btn.getAttribute('data-image-urls'), []);
+                const imagePaths = parseJsonOrEmpty(btn.getAttribute('data-image-paths'), []);
+                openEditNoteModal(stepIndex, noteId, noteText, imageUrls, imagePaths);
+                return false;
+            });
+        });
+    }
+
+    function closeEditNoteModal() {
+        const modalEl = document.getElementById('editNoteModal');
+        const formEl = document.getElementById('editNoteForm');
+        if (modalEl) {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
+        }
+        editNoteContext = { stepIndex: null, noteId: null, existingImages: [], removeImages: [] };
+        if (formEl) {
+            formEl._editNoteNewFiles = [];
+        }
+    }
+
+    function renderEditNoteExistingImages() {
+        const containerEl = document.getElementById('editNoteExistingImages');
+        if (!containerEl) {
+            return;
+        }
+
+        const visibleImages = editNoteContext.existingImages.filter(function(imgObj) {
+            const p = imgObj && imgObj.path ? imgObj.path : '';
+            return editNoteContext.removeImages.indexOf(p) === -1;
+        });
+
+        if (!visibleImages.length) {
+            containerEl.innerHTML = '';
+            containerEl.classList.remove('space-y-2');
+            return;
+        }
+
+        containerEl.classList.add('space-y-2');
+        containerEl.innerHTML = '<div class="text-xs font-bold text-gray-500 tracking-wide">Imagens atuais</div>';
+        const gridEl = document.createElement('div');
+        gridEl.className = 'grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5';
+
+        visibleImages.forEach(function(imgObj) {
+            const imagePath = imgObj.path || '';
+            const imageUrl = imgObj.url || imagePath;
+
+            const itemEl = document.createElement('div');
+            itemEl.className = 'relative overflow-hidden rounded border border-gray-200 bg-gray-50';
+
+            const imageEl = document.createElement('button');
+            imageEl.type = 'button';
+            imageEl.className = 'block w-full overflow-hidden';
+            imageEl.dataset.imageSrc = imageUrl;
+            imageEl.onclick = function() {
+                openImagePreviewModal(imageUrl);
+            };
+            const imgInner = document.createElement('img');
+            imgInner.src = imageUrl;
+            imgInner.className = 'h-24 w-full object-cover';
+            imageEl.appendChild(imgInner);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'mt-1 w-full rounded bg-white py-0.5 text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50';
+            removeBtn.textContent = 'Remover';
+            removeBtn.addEventListener('click', function() {
+                if (imagePath && editNoteContext.removeImages.indexOf(imagePath) === -1) {
+                    editNoteContext.removeImages.push(imagePath);
+                }
+                const removeEl = document.getElementById('editNoteRemoveImages');
+                if (removeEl) {
+                    removeEl.value = JSON.stringify(editNoteContext.removeImages);
+                }
+                renderEditNoteExistingImages();
+            });
+
+            itemEl.appendChild(imageEl);
+            itemEl.appendChild(removeBtn);
+            gridEl.appendChild(itemEl);
+        });
+
+        containerEl.appendChild(gridEl);
+    }
+
+    function renderEditNoteNewImagesPreview(files) {
+        const previewEl = document.getElementById('editNoteNewImagesPreview');
+        if (!previewEl) {
+            return;
+        }
+        if (!files || !files.length) {
+            previewEl.innerHTML = '';
+            previewEl.classList.add('hidden');
+            return;
+        }
+        previewEl.classList.remove('hidden');
+        previewEl.innerHTML = '';
+        previewEl.className = 'mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5';
+
+        files.forEach(function(file, index) {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'relative overflow-hidden rounded border border-gray-200 bg-gray-50';
+
+            const imageEl = document.createElement('img');
+            imageEl.className = 'h-24 w-full object-cover';
+            imageEl.alt = file.name;
+
+            const footerEl = document.createElement('div');
+            footerEl.className = 'flex items-center justify-between gap-2 px-2 py-1';
+            const nameEl = document.createElement('span');
+            nameEl.className = 'truncate text-[10px] text-gray-500';
+            nameEl.textContent = file.name;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'rounded bg-white px-2 py-0.5 text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50';
+            removeBtn.textContent = 'Remover';
+            removeBtn.addEventListener('click', function() {
+                const formEl = document.getElementById('editNoteForm');
+                if (formEl && formEl._editNoteNewFiles) {
+                    formEl._editNoteNewFiles = formEl._editNoteNewFiles.filter(function(_f, i) {
+                        return i !== index;
+                    });
+                    syncEditNoteInputFiles();
+                }
+            });
+
+            footerEl.appendChild(nameEl);
+            footerEl.appendChild(removeBtn);
+            itemEl.appendChild(imageEl);
+            itemEl.appendChild(footerEl);
+            previewEl.appendChild(itemEl);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                imageEl.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function syncEditNoteInputFiles() {
+        const formEl = document.getElementById('editNoteForm');
+        const inputEl = document.getElementById('editNoteNewImages');
+        if (!formEl || !inputEl) {
+            return;
+        }
+        const dataTransfer = new DataTransfer();
+        (formEl._editNoteNewFiles || []).forEach(function(file) {
+            dataTransfer.items.add(file);
+        });
+        inputEl.files = dataTransfer.files;
+        renderEditNoteNewImagesPreview(formEl._editNoteNewFiles || []);
+    }
+
+    function setupEditNoteForm() {
+        const formEl = document.getElementById('editNoteForm');
+        const inputEl = document.getElementById('editNoteNewImages');
+        if (!formEl || !inputEl) {
+            return;
+        }
+        formEl._editNoteNewFiles = [];
+
+        inputEl.addEventListener('change', function() {
+            const allExisting = editNoteContext.existingImages || [];
+            const remainingPaths = allExisting.map(function(o) { return o.path || ''; }).filter(function(p) {
+                return editNoteContext.removeImages.indexOf(p) === -1;
+            });
+            const existingRemaining = remainingPaths.length;
+            const maxTotal = 5;
+            const maxNew = Math.max(0, maxTotal - existingRemaining);
+            const incomingFiles = Array.from(inputEl.files || []);
+            const combinedFiles = (formEl._editNoteNewFiles || []).concat(incomingFiles);
+
+            if (existingRemaining + combinedFiles.length > maxTotal) {
+                alert(`Uma nota pode ter no maximo ${maxTotal} imagens no total. Restam ${maxNew} vaga(s) para novas imagens.`);
+            }
+
+            formEl._editNoteNewFiles = combinedFiles.slice(0, Math.max(0, maxNew));
+            syncEditNoteInputFiles();
+        });
+    }
+
+    function showDeleteNoteModal(event, form) {
+        event.preventDefault();
+        const messageEl = document.getElementById('deleteNoteConfirmMessage');
+        if (messageEl) {
+            messageEl.innerHTML = 'Deseja excluir esta nota?<br><div class="mt-3 text-xs font-normal text-gray-600">Esta acao nao pode ser desfeita.</div>';
+        }
+        pendingDeleteNote = { form: form };
+        setDeleteNoteModalLoading(false);
+        document.getElementById('deleteNoteConfirmModal').classList.remove('hidden');
+        document.getElementById('deleteNoteConfirmModal').classList.add('flex');
+        return false;
+    }
+
+    function cancelDeleteNote() {
+        setDeleteNoteModalLoading(false);
+        const modalEl = document.getElementById('deleteNoteConfirmModal');
+        if (modalEl) {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
+        }
+        pendingDeleteNote = null;
+    }
+
+    function confirmDeleteNote() {
+        if (!pendingDeleteNote || !pendingDeleteNote.form) {
+            return;
+        }
+        const form = pendingDeleteNote.form;
+        setDeleteNoteModalLoading(true);
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+        }
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            return response.json().catch(function() {
+                return { success: false, message: 'Nao foi possivel excluir a nota.' };
+            }).then(function(data) {
+                return { ok: response.ok, data: data };
+            });
+        })
+        .then(function(result) {
+            if (!result.ok || !result.data.success) {
+                throw new Error(result.data.message || 'Nao foi possivel excluir a nota.');
+            }
+            pendingDeleteNote = null;
+            window.location.reload();
+        })
+        .catch(function(error) {
+            setDeleteNoteModalLoading(false);
+            pendingDeleteNote = null;
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
+            alert(error.message || 'Nao foi possivel excluir a nota.');
+        });
+    }
+
+    function setDeleteNoteModalLoading(isLoading) {
+        const modalEl = document.getElementById('deleteNoteConfirmModal');
+        if (!modalEl) return;
+        const confirmButton = modalEl.querySelector('[data-confirm-modal-confirm]');
+        const cancelButton = modalEl.querySelector('[data-confirm-modal-cancel]');
+        if (confirmButton) {
+            if (!confirmButton.dataset.originalText) {
+                confirmButton.dataset.originalText = confirmButton.textContent.trim();
+            }
+            confirmButton.disabled = isLoading;
+            confirmButton.classList.toggle('is-loading', isLoading);
+            confirmButton.innerHTML = isLoading
+                ? '<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>Excluindo...</span></span>'
+                : escapeHtml(confirmButton.dataset.originalText || 'Confirmar');
+        }
+        if (cancelButton) {
+            cancelButton.disabled = isLoading;
+            cancelButton.classList.toggle('opacity-60', isLoading);
+            cancelButton.classList.toggle('pointer-events-none', isLoading);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         applyThemeStyles();
         applyUserAvatarStyles();
@@ -2195,6 +2598,8 @@
         setupDeleteTaskForms();
         setupDeleteSubtaskForms();
         setupKanbanNoteForms();
+        setupEditNoteButtons();
+        setupEditNoteForm();
         setupLoadingSubmitButtons();
     });
   </script>

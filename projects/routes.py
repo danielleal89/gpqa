@@ -5,9 +5,9 @@ import json
 from werkzeug.utils import secure_filename
 from . import projects_bp
 try:
-    from ..storage import save_upload, delete_file
+    from ..storage import save_upload, delete_file, build_file_url
 except (ImportError, ValueError):
-    from storage import save_upload, delete_file  # type: ignore
+    from storage import save_upload, delete_file, build_file_url  # type: ignore
 from .models import (
     load_projects, create_project, get_project, update_project_step,
     update_project_status, update_project_substep,
@@ -16,7 +16,8 @@ from .models import (
     delete_project_step, delete_project_substep,
     get_status_columns, get_project_status_options,
     create_project_step_kanban_card,
-    add_step_kanban_note, add_project_documentation, delete_project_documentation
+    add_step_kanban_note, add_project_documentation, delete_project_documentation,
+    get_kanban_note_by_id, update_step_kanban_note, delete_step_kanban_note
 )
 try:
     from ..kanban.models import (
@@ -81,6 +82,18 @@ def _can_update_step_status(project, step_index):
 
 def _can_update_step_subtasks(project, step_index):
     return _can_update_step_status(project, step_index)
+
+
+def _can_edit_or_delete_note(note_data):
+    if not note_data:
+        return False
+    if _is_admin_user():
+        return True
+    if not getattr(current_user, 'is_authenticated', False):
+        return False
+    note_creator = (note_data.get('created_by_name') or '').strip()
+    current_user_name = (getattr(current_user, 'name', '') or '').strip()
+    return bool(note_creator) and note_creator == current_user_name
 
 
 def _build_project_sprint_overview(project_id):
@@ -358,6 +371,10 @@ def detail(project_id):
             and not can_add_step_note
             and not step['kanban_note_limit_reached']
         )
+
+        for kanban_note in step.get('kanban_notes', []):
+            kanban_note['can_edit_delete'] = _can_edit_or_delete_note(kanban_note)
+            kanban_note['image_urls'] = [build_file_url(img) for img in (kanban_note.get('images') or [])]
 
         for substep in step.get('substeps', []):
             is_substep_done = substep.get('status') == subtask_done_status_slug
@@ -759,3 +776,87 @@ def add_step_kanban_note_route(project_id, step_index):
         open_task=step_index,
         kanban_task_note_status=result['status']
     ))
+
+
+@projects_bp.route('/<project_id>/update_step_kanban_note/<int:step_index>/<int:note_id>', methods=['POST'])
+def update_step_kanban_note_route(project_id, step_index, note_id):
+    note_data = get_kanban_note_by_id(note_id)
+    if not _can_edit_or_delete_note(note_data):
+        flash('Apenas o autor da nota ou administradores podem edita-la.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
+    note = request.form.get('note') or ''
+    remove_images_raw = request.form.get('remove_images') or '[]'
+    try:
+        remove_image_paths = json.loads(remove_images_raw) if remove_images_raw else []
+    except Exception:
+        remove_image_paths = []
+
+    uploaded_files = request.files.getlist('images')
+    valid_files = [file for file in uploaded_files if file and allowed_file(file.filename)]
+
+    current_note_images = note_data.get('images') or []
+    current_count = len(current_note_images) - len(remove_image_paths)
+    if current_count + len(valid_files) > 5:
+        flash('Uma nota pode ter no maximo 5 imagens.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
+    new_image_paths = []
+    if valid_files:
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        for index, file in enumerate(valid_files):
+            filename = secure_filename(file.filename)
+            unique_filename = f"{project_id}_{step_index}_note_{note_id}_{timestamp}_{index}_{filename}"
+            new_image_paths.append(save_upload(
+                file,
+                object_key=f'kanban_notes/{unique_filename}',
+                local_relative_path=f'uploads/kanban_notes/{unique_filename}'
+            ))
+
+    result = update_step_kanban_note(
+        note_id,
+        note,
+        new_image_paths=new_image_paths,
+        remove_image_paths=remove_image_paths,
+        editor_name=current_user.name if getattr(current_user, 'is_authenticated', False) else ''
+    )
+
+    for file_path in result.get('deleted_file_paths', []):
+        delete_file(file_path)
+
+    if not result.get('success'):
+        status = result.get('status')
+        if status == 'duplicate':
+            flash('Ja existe uma nota identica para esta tarefa.', 'danger')
+        elif status == 'empty':
+            flash('A nota precisa ter pelo menos um texto ou uma imagem.', 'danger')
+        else:
+            flash('Nao foi possivel atualizar a nota.', 'danger')
+
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
+
+@projects_bp.route('/<project_id>/delete_step_kanban_note/<int:step_index>/<int:note_id>', methods=['POST'])
+def delete_step_kanban_note_route(project_id, step_index, note_id):
+    note_data = get_kanban_note_by_id(note_id)
+    if not _can_edit_or_delete_note(note_data):
+        if _is_async_request():
+            return jsonify({'success': False, 'message': 'Apenas o autor da nota ou administradores podem exclui-la.'}), 403
+        flash('Apenas o autor da nota ou administradores podem exclui-la.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
+    result = delete_step_kanban_note(note_id)
+    if not result.get('success'):
+        if _is_async_request():
+            return jsonify({'success': False, 'message': 'Nao foi possivel excluir a nota.'}), 400
+        flash('Nao foi possivel excluir a nota.', 'danger')
+        return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))
+
+    for file_path in result.get('deleted_file_paths', []):
+        delete_file(file_path)
+
+    if _is_async_request():
+        return jsonify({'success': True, 'message': 'Nota excluida com sucesso.'})
+
+    flash('Nota excluida com sucesso.', 'success')
+    return redirect(url_for('projects.detail', project_id=project_id, open_task=step_index))

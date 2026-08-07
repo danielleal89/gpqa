@@ -1449,6 +1449,118 @@ def add_step_kanban_note(project_id, step_index, note_text, created_by_name='', 
     return {'success': True, 'status': 'created'}
 
 
+def get_kanban_note_by_id(note_id):
+    db = get_db()
+    ensure_kanban_task_notes_table(db)
+    row = db.execute(
+        'SELECT id, card_id, note, images, created_by_name, created_at FROM kanban_task_notes WHERE id = ?',
+        (int(note_id),)
+    ).fetchone()
+    if not row:
+        return None
+    note = dict(row)
+    try:
+        note['images'] = json.loads(note['images']) if note.get('images') else []
+    except Exception:
+        note['images'] = []
+    return note
+
+
+def _get_project_and_step_from_card_id(card_id):
+    db = get_db()
+    row = db.execute(
+        'SELECT project_id, step_index FROM tarefas WHERE id = ? LIMIT 1',
+        (int(card_id),)
+    ).fetchone()
+    if not row:
+        return None, None
+    return row['project_id'], row['step_index']
+
+
+def update_step_kanban_note(note_id, note_text, new_image_paths=None, remove_image_paths=None, editor_name=''):
+    db = get_db()
+    ensure_kanban_task_notes_table(db)
+    remove_image_paths = remove_image_paths or []
+    new_image_paths = new_image_paths or []
+
+    existing_note = get_kanban_note_by_id(note_id)
+    if not existing_note:
+        return {'success': False, 'status': 'missing'}
+
+    clean_note = ' '.join((note_text or '').strip().split())
+    current_images = list(existing_note.get('images') or [])
+    remaining_images = [img for img in current_images if img not in remove_image_paths]
+    updated_images = remaining_images + new_image_paths
+
+    if not clean_note and not updated_images:
+        return {'success': False, 'status': 'empty'}
+
+    card_id = existing_note['card_id']
+    if clean_note:
+        duplicate_note = db.execute(
+            '''
+            SELECT id
+            FROM kanban_task_notes
+            WHERE card_id = ? AND LOWER(TRIM(note)) = LOWER(TRIM(?)) AND id != ?
+            LIMIT 1
+            ''',
+            (card_id, clean_note, int(note_id))
+        ).fetchone()
+        if duplicate_note:
+            return {'success': False, 'status': 'duplicate'}
+
+    db.execute(
+        '''
+        UPDATE kanban_task_notes
+        SET note = ?, images = ?
+        WHERE id = ?
+        ''',
+        (
+            clean_note,
+            json.dumps(updated_images),
+            int(note_id)
+        )
+    )
+    db.commit()
+
+    project_id, _ = _get_project_and_step_from_card_id(card_id)
+    if project_id:
+        _invalidate_project_caches(project_id)
+
+    deleted_file_paths = [p for p in remove_image_paths if p in current_images]
+    return {
+        'success': True,
+        'status': 'updated',
+        'deleted_file_paths': deleted_file_paths
+    }
+
+
+def delete_step_kanban_note(note_id):
+    db = get_db()
+    ensure_kanban_task_notes_table(db)
+
+    existing_note = get_kanban_note_by_id(note_id)
+    if not existing_note:
+        return {'success': False, 'status': 'missing'}
+
+    card_id = existing_note['card_id']
+    file_paths_to_delete = list(existing_note.get('images') or [])
+
+    db.execute('DELETE FROM kanban_task_notes WHERE id = ?', (int(note_id),))
+    db.commit()
+
+    project_id, _ = _get_project_and_step_from_card_id(card_id)
+    if project_id:
+        _invalidate_project_caches(project_id)
+
+    return {
+        'success': True,
+        'status': 'deleted',
+        'deleted_file_paths': file_paths_to_delete,
+        'note_creator': existing_note.get('created_by_name') or ''
+    }
+
+
 def add_project_substep(project_id, step_index, substep_name):
     db = get_db()
     ensure_project_status_columns(db)
