@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ module.name }} - {{ project.name }}</title>
+  <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    body {
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #1f2937;
+    }
+    .text-primary {
+        color: var(--primary-color) !important;
+    }
+    .btn-primary-action {
+        background-color: var(--primary-color);
+        color: white;
+        transition: all 150ms;
+        font-weight: 700;
+        border-radius: 0.25rem;
+    }
+    .btn-primary-action:hover {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+    }
+    .submit-loading-btn {
+        position: relative;
+    }
+    .submit-loading-btn.is-loading {
+        opacity: 0.85;
+        pointer-events: none;
+    }
+    .submit-loading-btn-spinner {
+        width: 0.9rem;
+        height: 0.9rem;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #ffffff;
+        border-radius: 9999px;
+        display: inline-block;
+        animation: submit-loading-spin 0.7s linear infinite;
+    }
+    .item-delete-btn .submit-loading-btn-spinner {
+        border-color: rgba(220, 38, 38, 0.35);
+        border-top-color: #dc2626;
+    }
+    @keyframes submit-loading-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    .kanban-header {
+        background-color: white;
+        padding: 0.30rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        flex: none;
+    }
+    .kanban-title {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .kanban-back-link {
+        color: var(--primary-color);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.95rem;
+        transition: transform 150ms;
+        transform-origin: left center;
+    }
+    .kanban-back-link:hover {
+        color: var(--primary-color);
+        transform: scale(1.08);
+    }
+    .kanban-back-link svg {
+        flex: none;
+    }
+    .module-shell {
+        width: min(100%, 1680px);
+        margin: 0 auto;
+        padding: 2rem 1rem 2.5rem;
+        flex: 1;
+    }
+    @media (min-width: 768px) {
+        .module-shell {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+    }
+    @media (min-width: 1280px) {
+        .module-shell {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+    }
+    .module-header-card {
+        background-color: rgba(255, 255, 255, 0.75);
+        border-radius: 1.25rem;
+        padding: 0.85rem 1.75rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.12);
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+    }
+    .module-header-icon {
+        width: 3.25rem;
+        height: 3.25rem;
+        border-radius: 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #eef2ff;
+        color: #6366f1;
+        flex: none;
+    }
+    .module-header-icon img {
+        width: 2.2rem;
+        height: 2.2rem;
+        object-fit: contain;
+    }
+    .module-header-icon svg {
+        width: 1.6rem;
+        height: 1.6rem;
+        opacity: 0.55;
+    }
+    .category-section {
+        background-color: rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 1.1rem;
+        padding: 1.5rem;
+        margin-bottom: 0;
+    }
+    .category-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        gap: 0.75rem;
+    }
+    .category-title {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: var(--primary-color);
+        font-weight: 700;
+        font-size: 1.05rem;
+    }
+    .category-icon {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.65rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #eef2ff;
+        color: #6366f1;
+        flex: none;
+    }
+    .category-icon svg {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+    .btn-secondary-action {
+        background-color: white;
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
+        transition: all 150ms;
+        font-weight: 600;
+        border-radius: 0.25rem;
+    }
+    .btn-secondary-action:hover {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    .item-type-option span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.25rem;
+        border: 1px solid #d1d5db;
+        background-color: white;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #4b5563;
+        transition: all 150ms;
+    }
+    .item-type-option input:checked + span {
+        border-color: var(--primary-color);
+        background-color: var(--primary-color);
+        color: white;
+    }
+    .items-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+    .item-card {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .item-card-thumb {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        background-color: #f3f4f6;
+        display: block;
+    }
+    .item-card-body {
+        padding: 0.6rem 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        flex: 1;
+    }
+    .item-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: auto;
+    }
+    .item-card-footer p {
+        min-width: 0;
+    }
+    .item-delete-btn {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #dc2626;
+        background: none;
+        border: none;
+        cursor: pointer;
+        flex: none;
+    }
+    .item-delete-btn:hover {
+        text-decoration: underline;
+    }
+    .item-link-icon {
+        width: 100%;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #eef2ff;
+        color: #6366f1;
+    }
+    .item-link-icon svg {
+        width: 2rem;
+        height: 2rem;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  {% include 'partials/navbar.html' %}
+
+  <div class="kanban-header">
+    <div class="flex items-center gap-3 min-w-0">
+      <a href="{{ url_for('projects.modules_home', project_id=project.id) }}" class="kanban-back-link" title="Voltar para {{ project.name }}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span>Voltar para {{ project.name }}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="module-shell">
+    <div class="module-header-card">
+      <div class="module-header-icon">
+        {% if project.logo_url %}
+        <img src="{{ project.logo_url }}" alt="">
+        {% else %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+          <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"></circle>
+          <path d="M21 15l-5-5-9 9"></path>
+        </svg>
+        {% endif %}
+      </div>
+      <div class="min-w-0 flex-1">
+        <h2 class="text-2xl font-bold text-primary">{{ module.name }}</h2>
+        {% if module.description %}
+        <p class="text-sm text-gray-600 mt-1">{{ module.description }}</p>
+        {% endif %}
+        <div class="mt-1 flex justify-end">
+          <p class="text-xs text-gray-400">Criado por {{ module.created_by_name or 'Não informado' }} em {{ module.created_at_display }}</p>
+        </div>
+      </div>
+    </div>
+
+    {% for category_key, category_label in categories.items() %}
+    <div class="category-section">
+      <div class="category-section-header">
+        <div class="category-title">
+          <span class="category-icon">
+            {% if category_key == 'ux' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"></rect><path d="M8 21h8M12 18v3"></path></svg>
+            {% elif category_key == 'doc' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M9 13h6M9 17h6"></path></svg>
+            {% elif category_key == 'codigo' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"></path></svg>
+            {% else %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><path d="M16 8L2 22M17.5 15H9"></path></svg>
+            {% endif %}
+          </span>
+          {{ category_label }}
+        </div>
+        <button type="button" onclick="toggleElement('add-item-form-{{ category_key }}')" class="text-xs btn-secondary-action px-3 py-1.5 flex items-center">
+          <span class="mr-1">+</span> Adicionar
+        </button>
+      </div>
+
+      <div id="add-item-form-{{ category_key }}" class="hidden mb-4 rounded border border-gray-200 bg-gray-50 p-4">
+        <form action="{{ url_for('projects.add_module_item_route', project_id=project.id, module_id=module.id) }}" method="POST" enctype="multipart/form-data" class="space-y-3" data-item-form>
+          <input type="hidden" name="category" value="{{ category_key }}">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Nome</label>
+            <input type="text" name="document_title" placeholder="Ex: Tela de login" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required>
+          </div>
+          <div>
+            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Tipo</span>
+            <div class="grid grid-cols-2 gap-2 max-w-xs">
+              <label class="item-type-option cursor-pointer">
+                <input type="radio" name="item_type" value="file" class="sr-only" checked data-item-type-option>
+                <span>Arquivo</span>
+              </label>
+              <label class="item-type-option cursor-pointer">
+                <input type="radio" name="item_type" value="link" class="sr-only" data-item-type-option>
+                <span>Link</span>
+              </label>
+            </div>
+          </div>
+          <div data-item-type-section="file">
+            <label class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Arquivo</label>
+            <input
+              type="file"
+              name="document_file"
+              {% if category_key == 'codigo' %}
+              accept=".zip,.html,.css,.js,.py"
+              {% else %}
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,application/pdf,image/*"
+              {% endif %}
+              class="block w-full text-xs text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-700 hover:file:bg-gray-200"
+            >
+            {% if category_key == 'codigo' %}
+            <p class="mt-1 text-[11px] text-gray-400">Formatos aceitos: .zip, .html, .css, .js, .py</p>
+            {% endif %}
+          </div>
+          <div class="hidden" data-item-type-section="link">
+            <label class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Link</label>
+            <input type="url" name="link_url" placeholder="https://exemplo.com/tela" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+          </div>
+          <div class="flex justify-end">
+            <button type="submit" class="text-xs btn-primary-action px-4 py-2 submit-loading-btn" data-loading-submit data-loading-text="Salvando...">Salvar</button>
+          </div>
+        </form>
+      </div>
+
+      {% set items = module.items_by_category.get(category_key, []) %}
+      {% if items %}
+      <div class="items-grid">
+        {% for item in items %}
+        <div class="item-card">
+          {% if item.item_type == 'file' and item.is_image %}
+          <a href="{{ item.file_url }}" target="_blank" rel="noopener noreferrer">
+            <img src="{{ item.file_url }}" alt="{{ item.title }}" class="item-card-thumb">
+          </a>
+          {% elif item.item_type == 'file' %}
+          <a href="{{ item.file_url }}" target="_blank" rel="noopener noreferrer" class="item-link-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>
+          </a>
+          {% else %}
+          <a href="{{ item.link_url }}" target="_blank" rel="noopener noreferrer" class="item-link-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7.07 0l-2.83 2.83a5 5 0 0 0 7.07 7.07l1.5-1.5"></path></svg>
+          </a>
+          {% endif %}
+          <div class="item-card-body">
+            <a href="{{ item.file_url if item.item_type == 'file' else item.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-primary hover:underline truncate">
+              {{ item.title or item.file_name or item.link_url }}
+            </a>
+            <div class="item-card-footer">
+              <p class="text-xs text-gray-400 truncate">Criado em {{ item.created_at_display }}</p>
+              {% if can_manage_project %}
+              <form action="{{ url_for('projects.remove_module_item_route', project_id=project.id, module_id=module.id, item_id=item.id) }}" method="POST">
+                <button type="submit" class="item-delete-btn submit-loading-btn" data-loading-submit data-loading-text="Excluindo..." onclick="return confirmDeleteAction(event, 'Deseja excluir este item?');">Excluir</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-500 italic">Nenhum item cadastrado nesta categoria.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    function toggleElement(id) {
+        document.getElementById(id).classList.toggle('hidden');
+    }
+
+    function syncItemType(form) {
+        const selectedOption = form.querySelector('[data-item-type-option]:checked');
+        const currentType = selectedOption ? selectedOption.value : 'file';
+        form.querySelectorAll('[data-item-type-section]').forEach(function(sectionEl) {
+            sectionEl.classList.toggle('hidden', sectionEl.dataset.itemTypeSection !== currentType);
+        });
+    }
+
+    document.querySelectorAll('[data-item-form]').forEach(function(form) {
+        form.querySelectorAll('[data-item-type-option]').forEach(function(optionEl) {
+            optionEl.addEventListener('change', function() { syncItemType(form); });
+        });
+        syncItemType(form);
+    });
+
+    function applySubmitLoadingState(button) {
+        const loadingText = button.dataset.loadingText || 'Salvando...';
+        button.disabled = true;
+        button.classList.add('is-loading');
+        button.innerHTML = `<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>${loadingText}</span></span>`;
+    }
+
+    function confirmDeleteAction(event, message) {
+        if (!confirm(message)) {
+            event.preventDefault();
+            return false;
+        }
+        return true;
+    }
+
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            if (form.dataset.isSubmitting === 'true') {
+                return;
+            }
+            const submitButton = form.querySelector('[data-loading-submit]');
+            if (!submitButton) {
+                return;
+            }
+            form.dataset.isSubmitting = 'true';
+            applySubmitLoadingState(submitButton);
+        });
+    });
+  </script>
+
+</body>
+</html>

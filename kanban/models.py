@@ -886,7 +886,7 @@ def get_board_data(archived=False, sprints=None):
             'created_at_display': _format_board_datetime(note_row['created_at'])
         })
 
-    query = 'SELECT * FROM tarefas WHERE arquivado = ?'
+    query = 'SELECT * FROM tarefas WHERE arquivado = ? ORDER BY COALESCE(posicao, id), id'
     params = (1 if archived else 0,)
 
     cursor = db.execute(query, params)
@@ -1097,6 +1097,14 @@ def update_card_position(card_id, new_column_id):
                 update_project_substep(card['project_id'], card['step_index'], card['substep_index'], new_column_id, sync_kanban=False)
         return True
     return False
+
+
+def reorder_column_cards(card_ids):
+    db = get_db()
+    for index, card_id in enumerate(card_ids):
+        db.execute('UPDATE tarefas SET posicao = ? WHERE id = ?', (index, card_id))
+    db.commit()
+    _invalidate_kanban_caches(include_projects=True)
 
 
 def update_card_details(card_id, title, description, assigned_to, priority, start_date, end_date,

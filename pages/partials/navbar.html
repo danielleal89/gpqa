@@ -21,6 +21,7 @@
 .navbar-left {
     display: flex;
     align-items: center;
+    position: relative;
 }
 
 .navbar-logo {
@@ -28,10 +29,105 @@
     margin-right: 1rem;
 }
 
+/* Hamburger Menu */
+.hamburger-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-right: 0.75rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.hamburger-btn span {
+    display: block;
+    width: 1.5rem;
+    height: 2px;
+    background-color: var(--text-color);
+    border-radius: 2px;
+}
+
+.hamburger-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 18rem;
+    max-width: 85vw;
+    background-color: var(--primary-color);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+    z-index: 100;
+    color: var(--text-color);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 0;
+}
+
+.hamburger-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+    z-index: 90;
+}
+
+.hamburger-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1.25rem 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.hamburger-menu-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.hamburger-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.75;
+}
+
+.hamburger-close-btn:hover {
+    opacity: 1;
+}
+
+.hamburger-menu .nav-link {
+    display: block;
+    color: var(--text-color);
+    margin-right: 0;
+    border-radius: 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.9rem 1.25rem;
+}
+
+.hamburger-menu .nav-link:hover,
+.hamburger-menu .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-color);
+}
+
 .navbar-title {
     font-size: 1.125rem;
     font-weight: 700;
-    color: var(--secondary-color);
+    color: var(--text-color);
     text-decoration: none;
 }
 
@@ -41,18 +137,6 @@
 }
 
 /* Navigation Links */
-.nav-links {
-    display: none;
-    align-items: center;
-    margin-right: 1rem;
-}
-
-@media (min-width: 768px) {
-    .nav-links {
-        display: flex;
-    }
-}
-
 .nav-link {
     padding: 0.25rem 0.75rem;
     border-radius: 0.25rem;
@@ -345,16 +429,34 @@
 <nav class="navbar">
     <div class="navbar-container">
       <div class="navbar-left">
+          {% if current_user.is_authenticated %}
+          <button onclick="toggleHamburgerMenu()" class="hamburger-btn" aria-label="Abrir menu">
+              <span></span>
+              <span></span>
+              <span></span>
+          </button>
+
+          <!-- Hamburger Sidebar -->
+          <div id="hamburgerOverlay" class="hidden hamburger-overlay" onclick="toggleHamburgerMenu()"></div>
+          <div id="hamburgerMenu" class="hidden hamburger-menu">
+              <div class="hamburger-menu-header">
+                  <span class="hamburger-menu-title">Menu</span>
+                  <button type="button" onclick="toggleHamburgerMenu()" class="hamburger-close-btn" aria-label="Fechar menu">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                  </button>
+              </div>
+              <a href="{{ url_for('projects.index') }}" class="nav-link {{ 'active' if request.endpoint in ('projects.index', 'projects.detail', 'projects.create') else '' }}">Projetos</a>
+              <a href="{{ url_for('kanban.board') }}" class="nav-link {{ 'active' if request.endpoint and 'kanban' in request.endpoint else '' }}">Kanban</a>
+              <a href="{{ url_for('projects.documentation_home') }}" class="nav-link {{ 'active' if request.endpoint and (request.endpoint == 'projects.documentation_home' or request.endpoint == 'projects.modules_home' or request.endpoint == 'projects.module_detail') else '' }}">Documentações</a>
+          </div>
+          {% endif %}
           <a href="/" class="navbar-title">Gestão de Projetos - QA</a>
       </div>
-      
+
       <div class="navbar-right">
         {% if current_user.is_authenticated %}
-            <div class="nav-links">
-                <a href="{{ url_for('kanban.board') }}" class="nav-link {{ 'active' if request.endpoint and 'kanban' in request.endpoint else '' }}">Kanban</a>
-                <a href="{{ url_for('projects.index') }}" class="nav-link {{ 'active' if request.endpoint and 'projects' in request.endpoint else '' }}">Projetos</a>
-            </div>
-
             <!-- User Profile -->
             <div class="user-profile-wrapper">
                 <button onclick="toggleUserMenu()" class="user-avatar-btn" data-bg-color="{{ current_user.color|default('#3b82f6', true) }}">
@@ -425,6 +527,13 @@
     function toggleUserMenu() {
         const menu = document.getElementById('userMenu');
         menu.classList.toggle('hidden');
+    }
+
+    function toggleHamburgerMenu() {
+        const menu = document.getElementById('hamburgerMenu');
+        const overlay = document.getElementById('hamburgerOverlay');
+        menu.classList.toggle('hidden');
+        overlay.classList.toggle('hidden');
     }
 
     function openPasswordModal() {
@@ -521,13 +630,13 @@
     window.onclick = function(event) {
         const menu = document.getElementById('userMenu');
         const button = event.target.closest('button');
-        if (!button && !menu.classList.contains('hidden')) {
+        if (menu && !button && !menu.classList.contains('hidden')) {
              // Check if click is inside menu
              if (!event.target.closest('#userMenu')) {
                  menu.classList.add('hidden');
              }
         }
-        
+
         const modal = document.getElementById('passwordModal');
         if (event.target === modal) {
             closePasswordModal();

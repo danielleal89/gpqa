@@ -76,27 +76,82 @@
         background-color: var(--secondary-color);
         color: var(--primary-color);
     }
-    .progress-bar-fill {
-        background-color: #6390fe;
-    }
     /* Cards with transparency */
     .project-card {
-        background-color: rgba(255, 255, 255, 0.4);
-        padding: 1.6rem;
-        border-radius: 0.9rem;
-        box-shadow: 4px 4px 6px 1px rgba(0, 0, 0, 0.1), 2px 2px 4px -1px rgba(0, 0, 0, 0.06);
-        transition: all 0.2s;
-        backdrop-filter: blur(5px);
-        -webkit-backdrop-filter: blur(5px);
+        background-color: rgba(255, 255, 255, 0.5);
+        padding: 1.75rem;
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.12), 0 2px 6px -2px rgba(0, 0, 0, 0.06);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
         border-top: 4px solid var(--project-accent, #6390fe);
-        min-height: 220px;
+        min-height: 170px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
     }
     .project-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 10px 10px 15px -3px rgba(0, 0, 0, 0.1), 4px 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transform: translateY(-4px);
+        box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.18), 0 6px 12px -4px rgba(0, 0, 0, 0.08);
+    }
+    .project-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1.1rem;
+    }
+    .project-card-left {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        min-width: 0;
+    }
+    .project-card-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.4rem;
+        flex: none;
+    }
+    .project-icon {
+        width: 4rem;
+        height: 4rem;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: color-mix(in srgb, var(--project-accent, #6390fe) 16%, white);
+        color: var(--project-accent, #6390fe);
+        flex: none;
+    }
+    .project-icon-img {
+        width: 2.75rem;
+        height: 2.75rem;
+        object-fit: contain;
+    }
+    .project-icon-placeholder {
+        width: 1.9rem;
+        height: 1.9rem;
+        opacity: 0.55;
+    }
+    .project-title {
+        min-width: 0;
+    }
+    .project-meta {
+        font-size: 0.85rem;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+    }
+    .project-meta svg {
+        width: 1rem;
+        height: 1rem;
+        flex: none;
     }
     .projects-shell {
         width: min(100%, 1680px);
@@ -106,7 +161,7 @@
     }
     .projects-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        grid-template-columns: 1fr;
         gap: 1.5rem;
         align-items: stretch;
     }
@@ -116,7 +171,7 @@
             padding-right: 1.5rem;
         }
         .projects-grid {
-            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 1.75rem;
         }
     }
@@ -126,12 +181,7 @@
             padding-right: 2rem;
         }
         .projects-grid {
-            grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
-        }
-    }
-    @media (min-width: 1536px) {
-        .projects-grid {
-            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
         }
     }
   </style>
@@ -156,23 +206,38 @@
     <div class="projects-grid">
       {% for project in projects %}
       <div class="project-card" data-theme-accent="{{ project.project_status_theme.accent }}">
-        <div class="flex justify-between items-center mb-4 gap-3">
-          <h2 class="text-2xl font-semibold card-title leading-tight" title="{{ project.name }}">
-            {{ project.name | truncate(25, true, '...') }}
-          </h2>
-          <span class="text-sm font-semibold px-3 py-1.5 rounded-full border whitespace-nowrap"
-                data-theme-bg="{{ project.project_status_theme.pill_bg }}" data-theme-color="{{ project.project_status_theme.pill_text }}" data-theme-border="{{ project.project_status_theme.border }}">
-            {{ project.project_status_name }}
-          </span>
-        </div>
-        <div class="mb-3">
-          <div class="w-full bg-gray-200 rounded-full h-2.5">
-            {% set total_steps = project.steps|length %}
-            {% set completed_steps = project.steps|selectattr("status", "equalto", "done")|list|length %}
-            {% set progress = (completed_steps / total_steps * 100) if total_steps > 0 else 0 %}
-            <div class="h-2.5 rounded-full progress-bar-fill project-progress-fill" data-progress="{{ progress }}" data-fill-color="{{ project.project_status_theme.accent }}"></div>
+        {% set total_steps = project.steps|length %}
+        {% set completed_steps = project.steps|selectattr("status", "equalto", "done")|list|length %}
+        <div class="project-card-header">
+          <div class="project-card-left">
+            <div class="project-icon">
+              {% if project.logo_url %}
+              <img src="{{ project.logo_url }}" alt="" class="project-icon-img">
+              {% else %}
+              <svg class="project-icon-placeholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"></circle>
+                <path d="M21 15l-5-5-9 9"></path>
+              </svg>
+              {% endif %}
+            </div>
+            <h2 class="text-2xl font-semibold card-title project-title leading-tight" title="{{ project.name }}">
+              {{ project.name | truncate(25, true, '...') }}
+            </h2>
           </div>
-          <span class="text-sm text-gray-500 mt-2 block text-right">{{ completed_steps }}/{{ total_steps }} tarefas completas</span>
+          <div class="project-card-right">
+            <span class="text-sm font-semibold px-3 py-1.5 rounded-full border whitespace-nowrap"
+                  data-theme-bg="{{ project.project_status_theme.pill_bg }}" data-theme-color="{{ project.project_status_theme.pill_text }}" data-theme-border="{{ project.project_status_theme.border }}">
+              {{ project.project_status_name }}
+            </span>
+            <div class="project-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 11l3 3L22 4"></path>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+              </svg>
+              {{ completed_steps }}/{{ total_steps }} tarefas completas
+            </div>
+          </div>
         </div>
         <div class="flex justify-center mt-auto">
           <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="btn-new-task inline-flex w-40 items-center justify-center">
@@ -207,15 +272,6 @@
 
       document.querySelectorAll('[data-theme-accent]').forEach(function(element) {
         element.style.setProperty('--project-accent', element.dataset.themeAccent);
-      });
-
-      document.querySelectorAll('.project-progress-fill').forEach(function(element) {
-        const progress = Number(element.getAttribute('data-progress') || '0');
-        const fillColor = element.getAttribute('data-fill-color');
-        element.style.width = progress + '%';
-        if (fillColor) {
-          element.style.backgroundColor = fillColor;
-        }
       });
     });
   </script>

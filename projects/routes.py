@@ -5,9 +5,9 @@ import json
 from werkzeug.utils import secure_filename
 from . import projects_bp
 try:
-    from ..storage import save_upload, delete_file, build_file_url
+    from ..storage import save_upload, delete_file, build_file_url, StorageClientError
 except (ImportError, ValueError):
-    from storage import save_upload, delete_file, build_file_url  # type: ignore
+    from storage import save_upload, delete_file, build_file_url, StorageClientError  # type: ignore
 from .models import (
     load_projects, create_project, get_project, update_project_step,
     update_project_status, update_project_substep,
@@ -15,9 +15,12 @@ from .models import (
     update_project_substep_name, update_project_name, update_project_step_order,
     delete_project_step, delete_project_substep,
     get_status_columns, get_project_status_options,
-    create_project_step_kanban_card,
+    create_project_step_kanban_card, update_project_logo,
     add_step_kanban_note, add_project_documentation, delete_project_documentation,
-    get_kanban_note_by_id, update_step_kanban_note, delete_step_kanban_note
+    get_kanban_note_by_id, update_step_kanban_note, delete_step_kanban_note,
+    get_project_modules, create_module, get_module, delete_module,
+    add_module_item, delete_module_item, get_module_counts_by_project,
+    MODULE_ITEM_CATEGORIES
 )
 try:
     from ..kanban.models import (
@@ -36,6 +39,11 @@ PROJECT_DOCUMENTATION_FOLDER = 'static/uploads/project_documentations'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 ALLOWED_DOCUMENTATION_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'doc', 'docx'}
 ALLOWED_DOCUMENTATION_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'svg', 'webp'}
+ALLOWED_CODE_EXTENSIONS = {'zip', 'html', 'css', 'js', 'py'}
+MODULE_ITEM_CATEGORY_EXTENSIONS = {
+    'codigo': ALLOWED_CODE_EXTENSIONS
+}
 
 
 def allowed_file(filename):
@@ -51,6 +59,19 @@ def allowed_documentation_file(filename):
 def allowed_documentation_image(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_DOCUMENTATION_IMAGE_EXTENSIONS
+
+
+def allowed_logo(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_LOGO_EXTENSIONS
+
+
+def allowed_module_item_file(filename, category):
+    if not filename or '.' not in filename:
+        return False
+    extension = filename.rsplit('.', 1)[1].lower()
+    allowed_extensions = MODULE_ITEM_CATEGORY_EXTENSIONS.get(category, ALLOWED_DOCUMENTATION_EXTENSIONS)
+    return extension in allowed_extensions
 
 
 def _is_admin_user():
@@ -292,6 +313,8 @@ def _build_project_dashboard(project, project_sprints):
 @projects_bp.route('/')
 def index():
     projects = load_projects()
+    for project in projects:
+        project['logo_url'] = build_file_url(project['logo_path']) if project.get('logo_path') else None
     return render_template(
         'projects/index.html',
         projects=projects,
@@ -321,7 +344,24 @@ def create():
                 print("Erro ao decodificar JSON de passos")
 
         creator_name = current_user.name if getattr(current_user, 'is_authenticated', False) else 'Não informado'
-        create_project(name, description, steps_data, created_by_name=creator_name)
+        project = create_project(name, description, steps_data, created_by_name=creator_name)
+
+        uploaded_logo = request.files.get('logo')
+        if uploaded_logo and uploaded_logo.filename:
+            if not allowed_logo(uploaded_logo.filename):
+                flash('Tipo de imagem não permitido para o ícone do projeto.', 'danger')
+            else:
+                extension = uploaded_logo.filename.rsplit('.', 1)[1].lower()
+                try:
+                    stored_path = save_upload(
+                        uploaded_logo,
+                        object_key=f'logos/{project["id"]}.{extension}',
+                        local_relative_path=f'uploads/logos/{project["id"]}.{extension}'
+                    )
+                    update_project_logo(project['id'], stored_path)
+                except StorageClientError:
+                    flash('Não foi possível salvar o ícone do projeto no armazenamento configurado.', 'danger')
+
         return redirect(url_for('projects.index'))
 
     preview_creator_name = current_user.name if getattr(current_user, 'is_authenticated', False) else 'Não informado'
@@ -504,6 +544,177 @@ def remove_documentation(project_id, documentation_id):
 
     flash('Documentação excluída com sucesso.', 'success')
     return redirect(url_for('projects.detail', project_id=project_id, open_description=1))
+
+
+@projects_bp.route('/documentacoes')
+def documentation_home():
+    projects = load_projects()
+    module_counts = get_module_counts_by_project([project['id'] for project in projects])
+    for project in projects:
+        project['logo_url'] = build_file_url(project['logo_path']) if project.get('logo_path') else None
+        project['module_count'] = module_counts.get(project['id'], 0)
+    return render_template('projects/documentation_home.html', projects=projects)
+
+
+@projects_bp.route('/<project_id>/modulos')
+def modules_home(project_id):
+    project = get_project(project_id)
+    if not project:
+        return "Project not found", 404
+
+    project['logo_url'] = build_file_url(project['logo_path']) if project.get('logo_path') else None
+    modules = get_project_modules(project_id)
+    return render_template(
+        'projects/modules_home.html',
+        project=project,
+        modules=modules,
+        can_manage_project=_is_admin_user()
+    )
+
+
+@projects_bp.route('/<project_id>/modulos', methods=['POST'])
+def add_module_route(project_id):
+    project = get_project(project_id)
+    if not project:
+        return "Project not found", 404
+
+    name = request.form.get('name')
+    description = request.form.get('description')
+    creator_name = current_user.name if getattr(current_user, 'is_authenticated', False) else 'Não informado'
+
+    result = create_module(project_id, name, description, created_by_name=creator_name)
+    if not result.get('success'):
+        flash('Informe um nome para o módulo.', 'danger')
+    else:
+        flash('Módulo criado com sucesso.', 'success')
+
+    return redirect(url_for('projects.modules_home', project_id=project_id))
+
+
+@projects_bp.route('/<project_id>/modulos/<int:module_id>/excluir', methods=['POST'])
+def remove_module_route(project_id, module_id):
+    if not _is_admin_user():
+        flash('Apenas administradores podem excluir módulos.', 'danger')
+        return redirect(url_for('projects.modules_home', project_id=project_id))
+
+    result = delete_module(project_id, module_id)
+    if not result.get('success'):
+        flash('Módulo não encontrado.', 'danger')
+        return redirect(url_for('projects.modules_home', project_id=project_id))
+
+    for file_path in result.get('file_paths') or []:
+        delete_file(file_path)
+
+    flash('Módulo excluído com sucesso.', 'success')
+    return redirect(url_for('projects.modules_home', project_id=project_id))
+
+
+@projects_bp.route('/<project_id>/modulos/<int:module_id>')
+def module_detail(project_id, module_id):
+    project = get_project(project_id)
+    if not project:
+        return "Project not found", 404
+
+    project['logo_url'] = build_file_url(project['logo_path']) if project.get('logo_path') else None
+    module = get_module(project_id, module_id)
+    if not module:
+        return "Module not found", 404
+
+    for items in module['items_by_category'].values():
+        for item in items:
+            if item.get('item_type') == 'file':
+                item['file_url'] = build_file_url(item.get('file_path'))
+
+    return render_template(
+        'projects/module_detail.html',
+        project=project,
+        module=module,
+        categories=MODULE_ITEM_CATEGORIES,
+        can_manage_project=_is_admin_user()
+    )
+
+
+@projects_bp.route('/<project_id>/modulos/<int:module_id>/itens', methods=['POST'])
+def add_module_item_route(project_id, module_id):
+    module = get_module(project_id, module_id)
+    if not module:
+        return "Module not found", 404
+
+    category = request.form.get('category')
+    item_type = (request.form.get('item_type') or 'file').strip().lower()
+    document_title = (request.form.get('document_title') or '').strip()
+    link_url = (request.form.get('link_url') or '').strip()
+    uploaded_file = request.files.get('document_file')
+    creator_name = current_user.name if getattr(current_user, 'is_authenticated', False) else 'Não informado'
+
+    if category not in MODULE_ITEM_CATEGORIES:
+        flash('Selecione uma categoria válida.', 'danger')
+        return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
+
+    file_entries = []
+    if item_type == 'link':
+        if not link_url:
+            flash('Informe um link.', 'danger')
+            return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
+    else:
+        has_file = bool(uploaded_file and uploaded_file.filename)
+        if not has_file:
+            flash('Selecione um arquivo.', 'danger')
+            return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
+
+        if not allowed_module_item_file(uploaded_file.filename, category):
+            flash('Tipo de arquivo não permitido para esta categoria.', 'danger')
+            return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
+
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        original_name = secure_filename(uploaded_file.filename)
+        unique_filename = f'{timestamp}_{original_name}'
+        stored_path = save_upload(
+            uploaded_file,
+            object_key=f'module_items/{project_id}/{module_id}/{category}/{unique_filename}',
+            local_relative_path=f'uploads/module_items/{project_id}/{module_id}/{category}/{unique_filename}'
+        )
+        file_entries.append({
+            'title': document_title,
+            'file_name': original_name,
+            'file_path': stored_path,
+            'mime_type': uploaded_file.mimetype or ''
+        })
+
+    result = add_module_item(
+        project_id,
+        module_id,
+        category,
+        file_entries=file_entries,
+        link_url=link_url if item_type == 'link' else None,
+        link_title=document_title,
+        created_by_name=creator_name
+    )
+    if not result.get('success'):
+        flash('Não foi possível salvar o item informado.', 'danger')
+    else:
+        flash('Item adicionado com sucesso.', 'success')
+
+    return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
+
+
+@projects_bp.route('/<project_id>/modulos/<int:module_id>/itens/<int:item_id>/excluir', methods=['POST'])
+def remove_module_item_route(project_id, module_id, item_id):
+    if not _is_admin_user():
+        flash('Apenas administradores podem excluir itens.', 'danger')
+        return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
+
+    result = delete_module_item(project_id, module_id, item_id)
+    if not result.get('success'):
+        flash('Item não encontrado.', 'danger')
+        return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
+
+    file_path = (result.get('file_path') or '').strip()
+    if file_path:
+        delete_file(file_path)
+
+    flash('Item excluído com sucesso.', 'success')
+    return redirect(url_for('projects.module_detail', project_id=project_id, module_id=module_id))
 
 
 @projects_bp.route('/<project_id>/update_step/<int:step_index>', methods=['POST'])

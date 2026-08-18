@@ -1372,8 +1372,11 @@
             const newColumnId = evt.to.getAttribute('data-column-id');
             const oldColumnId = evt.from.getAttribute('data-column-id');
             const cardId = itemEl.getAttribute('data-card-id');
-            
-            if (newColumnId === oldColumnId) return;
+
+            if (newColumnId === oldColumnId) {
+                persistColumnCardOrder(evt.to);
+                return;
+            }
 
             // Restrição: Apenas administradores podem mover cards da coluna "Concluído" (done)
             const isAdmin = "{{ 'true' if current_user.is_admin else 'false' }}" === 'true';
@@ -1444,6 +1447,18 @@
           }
         });
       });
+    }
+
+    function persistColumnCardOrder(columnEl) {
+      if (!columnEl) return;
+      const cardIds = Array.from(columnEl.querySelectorAll('.kanban-card')).map(el => el.getAttribute('data-card-id'));
+      if (!cardIds.length) return;
+
+      fetch("{{ url_for('kanban.reorder_cards') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_ids: cardIds })
+      }).catch(err => console.error('Error reordering cards:', err));
     }
 
     function getCollapsedColumns() {
@@ -1705,6 +1720,8 @@
                   if (iconContainer && icons[newColumnId]) {
                       iconContainer.innerHTML = icons[newColumnId];
                   }
+
+                  persistColumnCardOrder(pendingMove.to);
               } else {
                   console.error('Failed to move card');
                   cancelMove();

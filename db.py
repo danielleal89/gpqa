@@ -96,6 +96,7 @@ def init_db():
                 project_id TEXT,
                 step_index INTEGER,
                 substep_index INTEGER,
+                posicao INTEGER,
                 FOREIGN KEY (responsavel) REFERENCES users (id)
             )
         ''')
@@ -135,6 +136,11 @@ def init_db():
             pass
 
         try:
+            cursor.execute('ALTER TABLE tarefas ADD COLUMN posicao INTEGER')
+        except sqlite3.OperationalError:
+            pass
+
+        try:
             cursor.execute('ALTER TABLE projetos ADD COLUMN status_coluna_id INTEGER')
         except sqlite3.OperationalError:
             pass
@@ -170,7 +176,8 @@ def init_db():
                 created_by_name TEXT,
                 created_at TEXT,
                 features TEXT,
-                passos_ids TEXT
+                passos_ids TEXT,
+                logo_path TEXT
             )
         ''')
 
@@ -300,6 +307,34 @@ def init_db():
         except sqlite3.OperationalError:
             pass
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS project_modules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                created_by_name TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                ordem INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(project_id) REFERENCES projetos(id) ON DELETE CASCADE
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS project_module_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                module_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                item_type TEXT NOT NULL,
+                title TEXT,
+                file_name TEXT,
+                file_path TEXT,
+                link_url TEXT,
+                mime_type TEXT,
+                created_by_name TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(module_id) REFERENCES project_modules(id) ON DELETE CASCADE
+            )
+        ''')
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS ausencias (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tipo INTEGER NOT NULL,
@@ -321,6 +356,8 @@ def init_db():
             from .projects.models import (
                 ensure_project_status_columns,
                 ensure_project_documentations_table,
+                ensure_project_modules_table,
+                ensure_module_items_table,
             )
         except ImportError:
             from kanban.models import (  # type: ignore
@@ -332,6 +369,8 @@ def init_db():
             from projects.models import (  # type: ignore
                 ensure_project_status_columns,
                 ensure_project_documentations_table,
+                ensure_project_modules_table,
+                ensure_module_items_table,
             )
 
         ensure_impedimento_columns(conn)
@@ -340,6 +379,8 @@ def init_db():
         ensure_kanban_sprints_table(conn)
         ensure_project_status_columns(conn)
         ensure_project_documentations_table(conn)
+        ensure_project_modules_table(conn)
+        ensure_module_items_table(conn)
         conn.commit()
         _RUNTIME_SCHEMA_READY = True
     finally:

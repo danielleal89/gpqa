@@ -110,10 +110,12 @@ def serve_file(stored_path):
             abort(404)
 
         content_type = obj.get('ContentType') or mimetypes.guess_type(object_key)[0] or 'application/octet-stream'
+        is_inline_safe = content_type.startswith('image/') or content_type == 'application/pdf'
+        disposition = 'inline' if is_inline_safe else 'attachment'
         return Response(
             obj['Body'].read(),
             mimetype=content_type,
-            headers={'Content-Disposition': f'inline; filename="{os.path.basename(object_key)}"'}
+            headers={'Content-Disposition': f'{disposition}; filename="{os.path.basename(object_key)}"'}
         )
 
     abort(404)

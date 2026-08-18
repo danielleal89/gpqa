@@ -194,6 +194,9 @@ def ensure_project_status_columns(db):
     if 'created_by_name' not in projetos_info:
         db.execute("ALTER TABLE projetos ADD COLUMN created_by_name TEXT")
         changed = True
+    if 'logo_path' not in projetos_info:
+        db.execute("ALTER TABLE projetos ADD COLUMN logo_path TEXT")
+        changed = True
 
     cursor = db.execute('''
         UPDATE projetos
@@ -351,6 +354,295 @@ def ensure_project_documentations_table(db):
     if docs_info and 'created_by_name' not in docs_info:
         db.execute("ALTER TABLE project_documentations ADD COLUMN created_by_name TEXT NOT NULL DEFAULT ''")
     db.commit()
+
+
+def ensure_project_modules_table(db):
+    if is_runtime_schema_ready():
+        return
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS project_modules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            created_by_name TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            ordem INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY(project_id) REFERENCES projetos(id) ON DELETE CASCADE
+        )
+    ''')
+    db.commit()
+
+
+def ensure_module_items_table(db):
+    if is_runtime_schema_ready():
+        return
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS project_module_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            module_id INTEGER NOT NULL,
+            category TEXT NOT NULL,
+            item_type TEXT NOT NULL,
+            title TEXT,
+            file_name TEXT,
+            file_path TEXT,
+            link_url TEXT,
+            mime_type TEXT,
+            created_by_name TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(module_id) REFERENCES project_modules(id) ON DELETE CASCADE
+        )
+    ''')
+    db.commit()
+
+
+MODULE_ITEM_CATEGORIES = {
+    'ux': 'Telas de UX',
+    'doc': 'Documentações',
+    'codigo': 'Códigos',
+    'extras': 'Extras'
+}
+
+
+def get_project_modules(project_id):
+    db = get_db()
+    ensure_project_modules_table(db)
+    ensure_module_items_table(db)
+
+    module_rows = db.execute(
+        'SELECT * FROM project_modules WHERE project_id = ? ORDER BY ordem, id',
+        (project_id,)
+    ).fetchall()
+    modules = [dict(row) for row in module_rows]
+    if not modules:
+        return []
+
+    module_ids = [module['id'] for module in modules]
+    placeholders = ','.join('?' for _ in module_ids)
+    count_rows = db.execute(
+        f'''
+        SELECT module_id, category, COUNT(*) as total
+        FROM project_module_items
+        WHERE module_id IN ({placeholders})
+        GROUP BY module_id, category
+        ''',
+        tuple(module_ids)
+    ).fetchall()
+
+    counts_by_module = {module_id: {} for module_id in module_ids}
+    for row in count_rows:
+        counts_by_module[row['module_id']][row['category']] = row['total']
+
+    for module in modules:
+        module['created_at_display'] = _format_project_datetime(module.get('created_at'))
+        module['category_counts'] = counts_by_module.get(module['id'], {})
+        module['item_total'] = sum(module['category_counts'].values())
+
+    return modules
+
+
+def create_module(project_id, name, description, created_by_name=''):
+    db = get_db()
+    ensure_project_modules_table(db)
+
+    clean_name = (name or '').strip()
+    if not clean_name:
+        return {'success': False, 'status': 'invalid_name'}
+
+    project = db.execute('SELECT id FROM projetos WHERE id = ? LIMIT 1', (project_id,)).fetchone()
+    if not project:
+        return {'success': False, 'status': 'missing_project'}
+
+    created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    ordem_row = db.execute(
+        'SELECT COALESCE(MAX(ordem), -1) + 1 as next_ordem FROM project_modules WHERE project_id = ?',
+        (project_id,)
+    ).fetchone()
+    next_ordem = ordem_row['next_ordem'] if ordem_row else 0
+
+    cursor = db.execute(
+        '''
+        INSERT INTO project_modules (project_id, name, description, created_by_name, created_at, ordem)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''',
+        (project_id, clean_name, (description or '').strip(), created_by_name or '', created_at, next_ordem)
+    )
+    module_id = getattr(cursor, 'lastrowid', None)
+    if not module_id:
+        module_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+    db.commit()
+    return {'success': True, 'status': 'created', 'module_id': module_id}
+
+
+def get_module(project_id, module_id):
+    db = get_db()
+    ensure_project_modules_table(db)
+    ensure_module_items_table(db)
+
+    row = db.execute(
+        'SELECT * FROM project_modules WHERE id = ? AND project_id = ? LIMIT 1',
+        (module_id, project_id)
+    ).fetchone()
+    if not row:
+        return None
+
+    module = dict(row)
+    module['created_at_display'] = _format_project_datetime(module.get('created_at'))
+
+    item_rows = db.execute(
+        '''
+        SELECT id, category, item_type, title, file_name, file_path, link_url, mime_type, created_by_name, created_at
+        FROM project_module_items
+        WHERE module_id = ?
+        ORDER BY datetime(created_at) DESC, id DESC
+        ''',
+        (module_id,)
+    ).fetchall()
+
+    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+    items_by_category = {category: [] for category in MODULE_ITEM_CATEGORIES}
+    for item_row in item_rows:
+        item = dict(item_row)
+        item['created_at_display'] = _format_project_datetime(item.get('created_at'))
+        file_path = item.get('file_path') or ''
+        file_extension = os.path.splitext(file_path)[1].lower()
+        item['is_image'] = item.get('item_type') == 'file' and file_extension in image_extensions
+        items_by_category.setdefault(item.get('category'), []).append(item)
+
+    module['items_by_category'] = items_by_category
+    return module
+
+
+def delete_module(project_id, module_id):
+    db = get_db()
+    ensure_project_modules_table(db)
+    ensure_module_items_table(db)
+
+    module = db.execute(
+        'SELECT id FROM project_modules WHERE id = ? AND project_id = ? LIMIT 1',
+        (module_id, project_id)
+    ).fetchone()
+    if not module:
+        return {'success': False, 'status': 'missing'}
+
+    file_rows = db.execute(
+        "SELECT file_path FROM project_module_items WHERE module_id = ? AND file_path IS NOT NULL AND file_path != ''",
+        (module_id,)
+    ).fetchall()
+    file_paths = [row['file_path'] for row in file_rows]
+
+    db.execute('DELETE FROM project_module_items WHERE module_id = ?', (module_id,))
+    db.execute('DELETE FROM project_modules WHERE id = ? AND project_id = ?', (module_id, project_id))
+    db.commit()
+
+    return {'success': True, 'status': 'deleted', 'file_paths': file_paths}
+
+
+def add_module_item(project_id, module_id, category, file_entries=None, link_url=None, link_title=None, created_by_name=''):
+    db = get_db()
+    ensure_module_items_table(db)
+
+    if category not in MODULE_ITEM_CATEGORIES:
+        return {'success': False, 'status': 'invalid_category'}
+
+    module = db.execute(
+        'SELECT id FROM project_modules WHERE id = ? AND project_id = ? LIMIT 1',
+        (module_id, project_id)
+    ).fetchone()
+    if not module:
+        return {'success': False, 'status': 'missing_module'}
+
+    created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    inserted_count = 0
+
+    for file_entry in file_entries or []:
+        db.execute(
+            '''
+            INSERT INTO project_module_items (
+                module_id, category, item_type, title, file_name, file_path, link_url, mime_type, created_by_name, created_at
+            ) VALUES (?, ?, 'file', ?, ?, ?, NULL, ?, ?, ?)
+            ''',
+            (
+                module_id,
+                category,
+                file_entry.get('title') or file_entry.get('file_name') or 'Arquivo',
+                file_entry.get('file_name') or '',
+                file_entry.get('file_path') or '',
+                file_entry.get('mime_type') or '',
+                created_by_name or '',
+                created_at
+            )
+        )
+        inserted_count += 1
+
+    clean_link_url = (link_url or '').strip()
+    if clean_link_url:
+        if '://' not in clean_link_url:
+            clean_link_url = f'https://{clean_link_url}'
+        db.execute(
+            '''
+            INSERT INTO project_module_items (
+                module_id, category, item_type, title, file_name, file_path, link_url, mime_type, created_by_name, created_at
+            ) VALUES (?, ?, 'link', ?, NULL, NULL, ?, NULL, ?, ?)
+            ''',
+            (
+                module_id,
+                category,
+                (link_title or '').strip() or clean_link_url,
+                clean_link_url,
+                created_by_name or '',
+                created_at
+            )
+        )
+        inserted_count += 1
+
+    db.commit()
+    if inserted_count == 0:
+        return {'success': False, 'status': 'empty'}
+    return {'success': True, 'status': 'created'}
+
+
+def delete_module_item(project_id, module_id, item_id):
+    db = get_db()
+    ensure_module_items_table(db)
+
+    module = db.execute(
+        'SELECT id FROM project_modules WHERE id = ? AND project_id = ? LIMIT 1',
+        (module_id, project_id)
+    ).fetchone()
+    if not module:
+        return {'success': False, 'status': 'missing_module'}
+
+    item = db.execute(
+        'SELECT id, file_path FROM project_module_items WHERE id = ? AND module_id = ? LIMIT 1',
+        (item_id, module_id)
+    ).fetchone()
+    if not item:
+        return {'success': False, 'status': 'missing'}
+
+    db.execute('DELETE FROM project_module_items WHERE id = ? AND module_id = ?', (item_id, module_id))
+    db.commit()
+
+    item_data = dict(item)
+    return {'success': True, 'status': 'deleted', 'file_path': item_data.get('file_path') or ''}
+
+
+def get_module_counts_by_project(project_ids):
+    if not project_ids:
+        return {}
+    db = get_db()
+    ensure_project_modules_table(db)
+    placeholders = ','.join('?' for _ in project_ids)
+    rows = db.execute(
+        f'''
+        SELECT project_id, COUNT(*) as total
+        FROM project_modules
+        WHERE project_id IN ({placeholders})
+        GROUP BY project_id
+        ''',
+        tuple(project_ids)
+    ).fetchall()
+    return {row['project_id']: row['total'] for row in rows}
 
 
 def _get_project_documentations(project_id):
@@ -732,6 +1024,14 @@ def create_project(name, description, steps_data, created_by_name=None):
     db.commit()
     _invalidate_project_caches(p_id)
     return get_project(p_id)
+
+
+def update_project_logo(project_id, logo_path):
+    db = get_db()
+    ensure_project_status_columns(db)
+    db.execute('UPDATE projetos SET logo_path = ? WHERE id = ?', (logo_path, project_id))
+    db.commit()
+    _invalidate_project_caches(project_id)
 
 
 def get_project(project_id):

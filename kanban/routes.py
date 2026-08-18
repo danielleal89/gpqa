@@ -10,7 +10,7 @@ try:
 except (ImportError, ValueError):
     from storage import save_upload  # type: ignore
 from .models import (
-    get_board_data, create_card, update_card_position, create_column, update_column, reorder_columns, delete_column,
+    get_board_data, create_card, update_card_position, reorder_column_cards, create_column, update_column, reorder_columns, delete_column,
     update_card_details, delete_card, archive_card, unarchive_card, get_users, add_card_note, get_card_by_id,
     get_project_tasks_available, get_all_projects, get_default_column_id, get_default_column_slug,
     get_linked_project_task_refs, get_sprints, create_sprint, update_sprint, delete_sprint,
@@ -432,6 +432,23 @@ def move_card():
     if update_card_position(card_id, new_column_id):
         return jsonify({'success': True})
     return jsonify({'success': False}), 400
+
+
+@kanban_bp.route('/card/reorder', methods=['POST'])
+def reorder_cards():
+    data = request.json or {}
+    card_ids = data.get('card_ids') or []
+
+    try:
+        card_ids = [int(card_id) for card_id in card_ids]
+    except (TypeError, ValueError):
+        return jsonify({'success': False}), 400
+
+    if not card_ids:
+        return jsonify({'success': False}), 400
+
+    reorder_column_cards(card_ids)
+    return jsonify({'success': True})
 
 
 @kanban_bp.route('/card/update/<card_id>', methods=['POST'])
