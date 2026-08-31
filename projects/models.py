@@ -403,6 +403,8 @@ MODULE_ITEM_CATEGORIES = {
     'extras': 'Extras'
 }
 
+GENERAL_DOCS_MODULE_NAME = 'Documentações Gerais'
+
 
 def get_project_modules(project_id):
     db = get_db()
@@ -437,6 +439,8 @@ def get_project_modules(project_id):
         module['created_at_display'] = _format_project_datetime(module.get('created_at'))
         module['category_counts'] = counts_by_module.get(module['id'], {})
         module['item_total'] = sum(module['category_counts'].values())
+
+    modules.sort(key=lambda module: 0 if (module.get('name') or '').strip().lower() == GENERAL_DOCS_MODULE_NAME.lower() else 1)
 
     return modules
 

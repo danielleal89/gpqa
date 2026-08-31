@@ -12,6 +12,7 @@
         background-position: center;
         background-attachment: fixed;
         color: #1f2937;
+        background-color: #f0f4f8;
     }
     .text-primary {
         color: var(--primary-color) !important;
@@ -85,24 +86,6 @@
     .kanban-back-link svg {
         flex: none;
     }
-    .module-shell {
-        width: min(100%, 1680px);
-        margin: 0 auto;
-        padding: 2rem 1rem 2.5rem;
-        flex: 1;
-    }
-    @media (min-width: 768px) {
-        .module-shell {
-            padding-left: 1.5rem;
-            padding-right: 1.5rem;
-        }
-    }
-    @media (min-width: 1280px) {
-        .module-shell {
-            padding-left: 2rem;
-            padding-right: 2rem;
-        }
-    }
     .module-header-card {
         background-color: rgba(255, 255, 255, 0.75);
         border-radius: 1.25rem;
@@ -135,13 +118,10 @@
         opacity: 0.55;
     }
     .category-section {
-        background-color: rgba(255, 255, 255, 0.55);
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
         border-radius: 1.1rem;
-        padding: 1.5rem;
-        margin-bottom: 0;
+        padding: 0.75rem 1.5rem;
     }
     .category-section-header {
         display: flex;
@@ -280,31 +260,9 @@
         <span>Voltar para {{ project.name }}</span>
       </a>
     </div>
+    <h1 class="kanban-title truncate">{{ module.name }}</h1>
   </div>
 
-  <div class="module-shell">
-    <div class="module-header-card">
-      <div class="module-header-icon">
-        {% if project.logo_url %}
-        <img src="{{ project.logo_url }}" alt="">
-        {% else %}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
-          <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"></circle>
-          <path d="M21 15l-5-5-9 9"></path>
-        </svg>
-        {% endif %}
-      </div>
-      <div class="min-w-0 flex-1">
-        <h2 class="text-2xl font-bold text-primary">{{ module.name }}</h2>
-        {% if module.description %}
-        <p class="text-sm text-gray-600 mt-1">{{ module.description }}</p>
-        {% endif %}
-        <div class="mt-1 flex justify-end">
-          <p class="text-xs text-gray-400">Criado por {{ module.created_by_name or 'Não informado' }} em {{ module.created_at_display }}</p>
-        </div>
-      </div>
-    </div>
 
     {% for category_key, category_label in categories.items() %}
     <div class="category-section">
@@ -413,7 +371,6 @@
       {% endif %}
     </div>
     {% endfor %}
-  </div>
 
   <script>
     function toggleElement(id) {

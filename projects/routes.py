@@ -2,6 +2,7 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import current_user
 import json
+import re
 from werkzeug.utils import secure_filename
 from . import projects_bp
 try:
@@ -72,6 +73,16 @@ def allowed_module_item_file(filename, category):
     extension = filename.rsplit('.', 1)[1].lower()
     allowed_extensions = MODULE_ITEM_CATEGORY_EXTENSIONS.get(category, ALLOWED_DOCUMENTATION_EXTENSIONS)
     return extension in allowed_extensions
+
+
+_URL_PATTERN = re.compile(r'^(https?://)?([\w-]+\.)+[a-z]{2,}(:\d+)?(/\S*)?$', re.IGNORECASE)
+
+
+def _looks_like_url(text):
+    clean_text = (text or '').strip()
+    if not clean_text or ' ' in clean_text:
+        return False
+    return bool(_URL_PATTERN.match(clean_text))
 
 
 def _is_admin_user():
@@ -551,7 +562,6 @@ def documentation_home():
     projects = load_projects()
     module_counts = get_module_counts_by_project([project['id'] for project in projects])
     for project in projects:
-        project['logo_url'] = build_file_url(project['logo_path']) if project.get('logo_path') else None
         project['module_count'] = module_counts.get(project['id'], 0)
     return render_template('projects/documentation_home.html', projects=projects)
 
@@ -563,6 +573,12 @@ def modules_home(project_id):
         return "Project not found", 404
 
     project['logo_url'] = build_file_url(project['logo_path']) if project.get('logo_path') else None
+    project['description_is_link'] = _looks_like_url(project.get('description'))
+    if project['description_is_link']:
+        href = project['description'].strip()
+        if '://' not in href:
+            href = f'https://{href}'
+        project['description_href'] = href
     modules = get_project_modules(project_id)
     return render_template(
         'projects/modules_home.html',
