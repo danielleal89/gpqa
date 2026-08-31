@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentações</title>
+  <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    body {
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #1f2937;
+        background-color: #f0f4f8;
+    }
+    .page-title {
+        font-size: 1.875rem;
+        line-height: 2.25rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .kanban-header {
+        background-color: white;
+        padding: 0.30rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        flex: none;
+    }
+    .kanban-title {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .kanban-subtitle {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.1rem;
+    }
+    .btn-new-task {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        font-family: var(--default-font);
+        background-color: var(--primary-color);
+        color: white;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 150ms;
+    }
+    .btn-new-task:hover {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+    }
+    .project-card {
+        background-color: var(--primary-color);
+        padding: 1.5rem 1.5rem 1.25rem;
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.35), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-top: 4px solid var(--secondary-color);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        text-decoration: none;
+        color: white;
+    }
+    .project-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.45), 0 6px 12px -4px rgba(0, 0, 0, 0.25);
+    }
+    .project-title {
+        color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+        line-height: 1.35;
+        min-width: 0;
+    }
+    .project-card-divider {
+        height: 1px;
+        background-color: rgba(255, 255, 255, 0.14);
+    }
+    .project-stat-box {
+        background-color: rgba(255, 255, 255, 0.07);
+        border-radius: 0.75rem;
+        padding: 0.6rem 0.5rem;
+        min-width: 0;
+        flex: none;
+    }
+    .project-stat-label {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+        margin-bottom: 0.35rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .project-stat-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1;
+    }
+    .project-card-footer {
+        margin-top: 0.1rem;
+    }
+    .projects-shell {
+        width: min(100%, 1680px);
+        margin: 0 auto;
+        padding: 1rem 1rem 2.5rem;
+        flex: 1;
+    }
+    .projects-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+    @media (min-width: 768px) {
+        .projects-shell {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        .projects-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.75rem;
+        }
+    }
+    @media (min-width: 1280px) {
+        .projects-shell {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+        .projects-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  {% include 'partials/navbar.html' %}
+
+  <div class="kanban-header">
+    <div>
+      <h1 class="kanban-title">Documentações</h1>
+    </div>
+  </div>
+
+  <div class="projects-shell">
+    <div class="projects-grid">
+      {% for project in projects %}
+      <a href="{{ url_for('projects.modules_home', project_id=project.id) }}" class="project-card">
+        <h2 class="project-title" title="{{ project.name }}">
+          {{ project.name | truncate(25, true, '...') }}
+        </h2>
+
+        <div class="project-card-divider"></div>
+
+        <div class="project-card-footer">
+          <div class="project-stat-box">
+            <div class="project-stat-label">Módulos</div>
+            <div class="project-stat-value">{{ project.module_count }}</div>
+          </div>
+        </div>
+      </a>
+      {% else %}
+      <div class="col-span-full text-center py-10">
+        <p class="text-gray-500 text-lg">Nenhum projeto encontrado!</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</body>
+</html>
