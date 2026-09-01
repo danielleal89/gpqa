@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ sprint.name }} - Sprints</title>
+  <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    body {
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #1f2937;
+        background-color: #f0f4f8;
+    }
+    .kanban-header {
+        background-color: white;
+        padding: 0.30rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        flex: none;
+    }
+    .kanban-title {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .kanban-back-link {
+        color: var(--primary-color);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.95rem;
+        transition: transform 150ms;
+        transform-origin: left center;
+    }
+    .kanban-back-link:hover {
+        color: var(--primary-color);
+        transform: scale(1.08);
+    }
+    .kanban-back-link svg {
+        flex: none;
+    }
+    .sprint-shell {
+        width: min(100%, 1680px);
+        margin: 0 auto;
+        padding: 1rem 1rem 2.5rem;
+        flex: 1;
+    }
+    @media (min-width: 768px) {
+        .sprint-shell {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+    }
+    @media (min-width: 1280px) {
+        .sprint-shell {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+    }
+    .sprint-header-card {
+        background-color: var(--primary-color);
+        border-top: 4px solid var(--secondary-color);
+        border-radius: 1.25rem;
+        padding: 1.5rem 1.75rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.35), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
+        margin-bottom: 1.5rem;
+        color: white;
+    }
+    .sprint-header-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .sprint-status-pill {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.3rem 0.7rem;
+        border-radius: 9999px;
+        flex: none;
+        white-space: nowrap;
+    }
+    .sprint-header-dates {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 0.25rem;
+    }
+    .sprint-header-description {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.7);
+        margin-top: 0.75rem;
+        max-width: 60ch;
+    }
+    .sprint-progress-track {
+        height: 0.5rem;
+        border-radius: 9999px;
+        background-color: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+        margin-top: 1rem;
+    }
+    .sprint-progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+        background-color: var(--secondary-color);
+    }
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+    @media (min-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (min-width: 1400px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    .panel {
+        background-color: rgba(255, 255, 255, 0.75);
+        border-radius: 1.1rem;
+        padding: 1rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.12);
+    }
+    .panel-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+    }
+    .stat-tiles {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.85rem;
+    }
+    .stat-tile {
+        background-color: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.85rem;
+        padding: 0.5rem 1rem;
+    }
+    .stat-tile-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 0.35rem;
+    }
+    .stat-tile-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        line-height: 1;
+    }
+    .stat-tile-value.danger {
+        color: #dc2626;
+    }
+    .chart-wrap {
+        position: relative;
+        height: 110px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1rem;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    .chart-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        color: #4b5563;
+    }
+    .chart-legend-dot {
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 9999px;
+        flex: none;
+    }
+    .users-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    @media (min-width: 768px) {
+        .users-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (min-width: 1400px) {
+        .users-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    .user-card {
+        background-color: rgba(255, 255, 255, 0.85);
+        border-radius: 1.1rem;
+        padding: 1.25rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.12);
+    }
+    .user-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.85rem;
+    }
+    .user-avatar {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 700;
+        flex: none;
+        overflow: hidden;
+    }
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .user-card-name {
+        font-weight: 700;
+        color: var(--primary-color);
+        min-width: 0;
+        flex: 1;
+    }
+    .user-card-count {
+        font-size: 0.78rem;
+        color: #6b7280;
+        flex: none;
+    }
+    .user-progress-track {
+        height: 0.4rem;
+        border-radius: 9999px;
+        background-color: #e5e7eb;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    .user-progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+        background-color: #3b82f6;
+    }
+    .task-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0;
+        border-top: 1px solid #f1f5f9;
+    }
+    .task-row:first-child {
+        border-top: none;
+    }
+    .task-priority-dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 9999px;
+        flex: none;
+    }
+    .task-title {
+        font-size: 0.85rem;
+        color: #374151;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .task-title.done {
+        color: #9ca3af;
+        text-decoration: line-through;
+    }
+    .task-column-pill {
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.15rem 0.5rem;
+        border-radius: 9999px;
+        flex: none;
+        white-space: nowrap;
+    }
+    .task-overdue-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #dc2626;
+        flex: none;
+    }
+    .empty-state {
+        color: #9ca3af;
+        font-size: 0.85rem;
+        font-style: italic;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  {% include 'partials/navbar.html' %}
+
+  <div class="kanban-header">
+    <a href="{{ url_for('kanban.sprints_home') }}" class="kanban-back-link" title="Voltar para Sprints">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+      <span>Voltar para Sprints</span>
+    </a>
+    <h1 class="kanban-title truncate">{{ sprint.name }}</h1>
+  </div>
+
+  <div class="sprint-shell">
+    <div class="sprint-header-card">
+      <div class="sprint-header-top">
+        <div>
+          <h2 class="text-2xl font-bold">{{ sprint.name }}</h2>
+          {% if sprint.start_date_display or sprint.end_date_display %}
+          <p class="sprint-header-dates">{{ sprint.start_date_display or '?' }} &rarr; {{ sprint.end_date_display or '?' }}</p>
+          {% endif %}
+        </div>
+        <span class="sprint-status-pill" style="background-color: {{ sprint.status_theme.bg }}; color: {{ sprint.status_theme.text }};">
+          {{ sprint.status_label }}
+        </span>
+      </div>
+      {% if sprint.description %}
+      <p class="sprint-header-description">{{ sprint.description }}</p>
+      {% endif %}
+      <div class="sprint-progress-track">
+        <div class="sprint-progress-fill" style="width: {{ counts.percent }}%;"></div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="panel">
+        <h3 class="panel-title">Números da sprint</h3>
+        <div class="stat-tiles">
+          <div class="stat-tile">
+            <div class="stat-tile-label">Tarefas</div>
+            <div class="stat-tile-value">{{ counts.total }}</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Concluídas</div>
+            <div class="stat-tile-value">{{ counts.done }} <span class="text-sm font-semibold text-gray-400">({{ counts.percent }}%)</span></div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Atrasadas</div>
+            <div class="stat-tile-value {{ 'danger' if overdue_total else '' }}">{{ overdue_total }}</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-tile-label">Impedidas</div>
+            <div class="stat-tile-value {{ 'danger' if impedido_total else '' }}">{{ impedido_total }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 class="panel-title">Distribuição por status</h3>
+        {% if counts.total %}
+        <div class="chart-wrap">
+          <canvas id="statusChart"></canvas>
+        </div>
+        <div class="chart-legend">
+          {% for column in columns %}
+          <span class="chart-legend-item">
+            <span class="chart-legend-dot" style="background-color: {{ column.color }};"></span>
+            {{ column.name }} ({{ column_counts.get(column.slug, 0) }})
+          </span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">Nenhuma tarefa vinculada a esta sprint ainda.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <h3 class="panel-title" style="margin-bottom: 1rem;">Tarefas por pessoa</h3>
+    {% if user_cards %}
+    <div class="users-grid">
+      {% for group in user_cards %}
+      <div class="user-card">
+        <div class="user-card-header">
+          <div class="user-avatar" style="background-color: {{ group.user_color }};">
+            {% if group.user and group.user.photo %}
+            <img src="data:image/png;base64,{{ group.user.photo }}" alt="">
+            {% else %}
+            {{ (group.user_name or '??')[:2]|upper }}
+            {% endif %}
+          </div>
+          <div class="user-card-name truncate">{{ group.user_name }}</div>
+          <div class="user-card-count">{{ group.counts.done }}/{{ group.counts.total }}</div>
+        </div>
+        <div class="user-progress-track">
+          <div class="user-progress-fill" style="width: {{ group.counts.percent }}%;"></div>
+        </div>
+        {% for task in group.tasks %}
+        <div class="task-row">
+          <span class="task-priority-dot" style="background-color: {{ '#ef4444' if task.priority == 'Alta' else '#eab308' if task.priority == 'Media' else '#22c55e' }};" title="Prioridade: {{ task.priority or 'Media' }}"></span>
+          <span class="task-title {{ 'done' if task.column_id == 'done' else '' }}" title="{{ task.title }}">{{ task.title }}</span>
+          {% if task.is_overdue %}
+          <span class="task-overdue-badge">Atrasada</span>
+          {% endif %}
+          {% if task.column %}
+          <span class="task-column-pill" style="background-color: {{ task.column.theme.pill_bg }}; color: {{ task.column.theme.pill_text }};">{{ task.column.name }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">Nenhuma tarefa vinculada a esta sprint ainda.</p>
+    {% endif %}
+  </div>
+
+  <script>
+    {% if counts.total %}
+    const ctx = document.getElementById('statusChart');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: [{% for column in columns %}{{ column.name|tojson }},{% endfor %}],
+            datasets: [{
+                data: [{% for column in columns %}{{ column_counts.get(column.slug, 0) }},{% endfor %}],
+                backgroundColor: [{% for column in columns %}{{ column.color|tojson }},{% endfor %}],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+    {% endif %}
+  </script>
+
+</body>
+</html>

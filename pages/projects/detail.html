@@ -319,32 +319,6 @@
     .subtask-grid-actions form {
         margin: 0;
     }
-    .documentation-type-option input:checked + span {
-        border-color: var(--primary-color);
-        background-color: rgba(37, 99, 235, 0.08);
-        color: var(--primary-color);
-    }
-    .project-sprints-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1rem;
-    }
-    .project-sprint-card {
-        border: 1px solid #e5e7eb;
-        border-radius: 0.75rem;
-        background: #fff;
-        padding: 1rem;
-    }
-    .project-sprint-progress-track {
-        height: 0.5rem;
-        border-radius: 9999px;
-        background: #e5e7eb;
-        overflow: hidden;
-    }
-    .project-sprint-progress-fill {
-        height: 100%;
-        border-radius: 9999px;
-    }
     .project-section-card {
         padding: 1rem 1.25rem;
     }
@@ -352,31 +326,6 @@
         font-size: 1.35rem;
         font-weight: 700;
         line-height: 1.25;
-    }
-    .project-view-nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        margin-bottom: 0.9rem;
-    }
-    .project-view-btn {
-        border: 1px solid #d1d5db;
-        border-radius: 9999px;
-        padding: 0.55rem 1rem;
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #4b5563;
-        background: #ffffff;
-        transition: all 150ms;
-    }
-    .project-view-btn:hover {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
-    }
-    .project-view-btn.is-active {
-        background: var(--primary-color);
-        border-color: var(--primary-color);
-        color: #ffffff;
     }
     .project-metric-grid {
         display: grid;
@@ -500,214 +449,13 @@
         <div id="projectDescriptionContent" class="hidden mt-3 border-t border-gray-100 pt-3">
             <h2 class="text-sm font-bold uppercase tracking-wide text-gray-500 mb-2">Descrição</h2>
             <p class="text-gray-700 whitespace-pre-line">{{ project.description or 'Sem descrição informada.' }}</p>
-            <div class="mt-4 border-t border-gray-100 pt-4">
-                <div class="flex items-center justify-between gap-3 mb-3">
-                    <h2 class="text-sm font-bold tracking-wide text-gray-500">Documentações</h2>
-                    <button type="button" onclick="toggleElement('project-documentation-form')" class="text-xs btn-secondary-action px-3 py-1.5 flex items-center">
-                        <span class="mr-1">+</span> Documentação
-                    </button>
-                </div>
-
-                <div id="project-documentation-form" class="{% if open_description %}mb-4 rounded border border-gray-200 bg-gray-50 p-4{% else %}hidden mb-4 rounded border border-gray-200 bg-gray-50 p-4{% endif %}">
-                    <form action="{{ url_for('projects.add_documentation', project_id=project.id) }}" method="POST" enctype="multipart/form-data" class="space-y-3">
-                        <div>
-                            <label for="projectDocumentationTitle" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Nome da documentação</label>
-                            <input id="projectDocumentationTitle" type="text" name="document_title" placeholder="Ex: Manual do projeto" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" required>
-                        </div>
-                        <div>
-                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Tipo</span>
-                            <div class="grid gap-2 sm:grid-cols-3">
-                                <label class="documentation-type-option cursor-pointer">
-                                    <input type="radio" name="documentation_type" value="image" class="sr-only" checked data-documentation-type-option>
-                                    <span class="flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition">
-                                        Imagem
-                                    </span>
-                                </label>
-                                <label class="documentation-type-option cursor-pointer">
-                                    <input type="radio" name="documentation_type" value="file" class="sr-only" data-documentation-type-option>
-                                    <span class="flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition">
-                                        Arquivo
-                                    </span>
-                                </label>
-                                <label class="documentation-type-option cursor-pointer">
-                                    <input type="radio" name="documentation_type" value="link" class="sr-only" data-documentation-type-option>
-                                    <span class="flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition">
-                                        Link
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-                        <div data-documentation-type-section="image">
-                            <label for="projectDocumentationImage" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Imagem</label>
-                            <input
-                                id="projectDocumentationImage"
-                                type="file"
-                                name="document_image"
-                                accept="image/*,.png,.jpg,.jpeg,.gif,.webp"
-                                class="block w-full text-xs text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-700 hover:file:bg-gray-200"
-                            >
-                        </div>
-                        <div class="hidden" data-documentation-type-section="file">
-                            <label for="projectDocumentationFile" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Arquivo</label>
-                            <input
-                                id="projectDocumentationFile"
-                                type="file"
-                                name="document_file"
-                                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,application/pdf,image/*"
-                                class="block w-full text-xs text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-700 hover:file:bg-gray-200"
-                            >
-                        </div>
-                        <div class="hidden" data-documentation-type-section="link">
-                            <label for="projectDocumentationLink" class="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Link</label>
-                            <input id="projectDocumentationLink" type="url" name="link_url" placeholder="https://exemplo.com/documentacao" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-                        </div>
-                        <div class="flex justify-end">
-                            <button type="submit" class="text-xs btn-primary-action px-4 py-2 submit-loading-btn" data-loading-submit data-loading-text="Salvando...">Salvar documentação</button>
-                        </div>
-                    </form>
-                </div>
-
-                {% if project.documentation_items %}
-                <div class="grid gap-3 md:grid-cols-2">
-                    {% for item in project.documentation_items %}
-                    <div class="rounded border border-gray-200 bg-white px-3 py-2.5">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0 flex-1">
-                                {% if item.item_type == 'file' %}
-                                <div class="min-w-0">
-                                    <a href="{{ storage_url(item.file_path) }}" target="_blank" rel="noopener noreferrer" class="block truncate text-sm font-semibold text-primary hover:underline">
-                                        {{ item.title or item.file_name }}
-                                    </a>
-                                    <p class="text-xs text-gray-500 truncate">{{ item.file_name }}</p>
-                                </div>
-                                {% else %}
-                                <div>
-                                    <a href="{{ item.link_url }}" target="_blank" rel="noopener noreferrer" class="block text-sm font-semibold text-primary hover:underline break-all">
-                                        {{ item.title or item.link_url }}
-                                    </a>
-                                    <p class="text-xs text-gray-500 break-all">{{ item.link_url }}</p>
-                                </div>
-                                {% endif %}
-                            </div>
-                            <div class="shrink-0 flex items-center gap-2">
-                                <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
-                                    {% if item.item_type == 'file' %}
-                                    {{ 'Imagem' if item.is_image else 'Arquivo' }}
-                                    {% else %}
-                                    Link
-                                    {% endif %}
-                                </span>
-                                {% if project.can_manage_project %}
-                                <form action="{{ url_for('projects.remove_documentation', project_id=project.id, documentation_id=item.id) }}" method="POST" onsubmit="return confirm('Deseja excluir esta documentação?');">
-                                    <button type="submit" class="text-[11px] font-semibold text-red-600 hover:text-red-800 transition-colors">
-                                        Excluir
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <p class="mt-1.5 text-xs text-gray-400">Adicionado por {{ item.created_by_name or 'Nao informado' }} em {{ item.created_at_display }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-sm text-gray-500 italic">Nenhuma documentação cadastrada para este projeto.</p>
-                {% endif %}
-            </div>
             <div class="mt-3 flex justify-end items-end">
                 <p class="text-sm text-right text-gray-500">Criado por {{ project.created_by_name }} em {{ project.created_at_display }}</p>
             </div>
         </div>
     </div>
     
-    <div class="project-view-nav">
-        <button type="button" class="project-view-btn is-active" data-project-view-btn data-project-view-target="overview" onclick="setProjectView('overview')">
-            Projeto
-        </button>
-        <button type="button" class="project-view-btn" data-project-view-btn data-project-view-target="sprints" onclick="setProjectView('sprints')">
-            Sprints
-        </button>
-        <button type="button" class="project-view-btn" data-project-view-btn data-project-view-target="dashboard" onclick="setProjectView('dashboard')">
-            Dashboard
-        </button>
-    </div>
-
-    <section id="projectViewSprints" data-project-view-panel class="hidden">
-    <div class="bg-white rounded-lg shadow-md px-6 py-4 mb-6">
-        <div class="flex justify-between items-center gap-4">
-            <div class="py-0.5 min-w-0">
-                <h2 class="project-section-title text-primary">Sprints do Projeto</h2>
-            </div>
-            <button type="button" id="projectSprintsToggle" onclick="toggleProjectSprints()" class="project-header-toggle" aria-expanded="false" aria-controls="projectSprintsPanel" title="Mostrar sprints do projeto">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-            </button>
-        </div>
-
-        {% if project_sprints %}
-        <div id="projectSprintsPanel" class="hidden mt-4">
-        <div class="project-sprints-grid">
-            {% for sprint in project_sprints %}
-            <div class="project-sprint-card">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <h3 class="text-base font-bold text-gray-800 truncate">{{ sprint.name }}</h3>
-                        <p class="text-xs text-gray-500 mt-1">{{ sprint.start_date_display or 'Sem início' }} - {{ sprint.end_date_display or 'Sem fim' }}</p>
-                    </div>
-                    <span class="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold"
-                        data-theme-bg="{{ sprint.status_theme.bg }}"
-                        data-theme-color="{{ sprint.status_theme.text }}"
-                        data-theme-border="{{ sprint.status_theme.border }}">
-                        {{ sprint.status_label }}
-                    </span>
-                </div>
-
-                {% if sprint.description %}
-                <p class="mt-3 text-sm text-gray-600 whitespace-pre-line">{{ sprint.description }}</p>
-                {% endif %}
-
-                <div class="mt-4 space-y-3">
-                    <div>
-                        <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
-                            <span>Tempo da sprint</span>
-                            <span>{{ sprint.progress.percent }}%</span>
-                        </div>
-                        <div class="project-sprint-progress-track">
-                            <div class="project-sprint-progress-fill" data-progress-width="{{ sprint.progress.percent }}" data-progress-color="{{ sprint.status_theme.text }}"></div>
-                        </div>
-                        <p class="mt-1 text-[11px] text-gray-500">{{ sprint.progress.label }}{% if sprint.progress.hint %} · {{ sprint.progress.hint }}{% endif %}</p>
-                    </div>
-
-                    <div>
-                        <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
-                            <span>Cards concluídos</span>
-                            <span>{{ sprint.done_cards }}/{{ sprint.total_cards }}</span>
-                        </div>
-                        <div class="project-sprint-progress-track">
-                            <div class="project-sprint-progress-fill" data-progress-width="{{ sprint.task_progress_percent }}" data-progress-color="#10b981"></div>
-                        </div>
-                        <p class="mt-1 text-[11px] text-gray-500">{{ sprint.task_progress_percent }}% dos cards deste projeto estão concluídos.</p>
-                    </div>
-                </div>
-
-                <div class="mt-4 flex items-center justify-between gap-3">
-                    <p class="text-xs text-gray-500">{{ sprint.total_cards }} card(s) deste projeto nesta sprint</p>
-                    <a href="{{ url_for('kanban.board', project_id=project.id, sprint_id=sprint.id) }}" class="text-xs font-semibold text-primary hover:underline whitespace-nowrap">
-                        Abrir esta sprint no kanban
-                    </a>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        </div>
-        {% else %}
-        <p class="text-sm text-gray-500 italic">Nenhuma sprint vinculada aos cards deste projeto no Kanban.</p>
-        {% endif %}
-    </div>
-    </section>
-
-    <section id="projectViewOverview" data-project-view-panel>
+    <section>
     <div class="project-metric-grid mb-6">
         <div class="project-metric-card">
             <p class="text-xs font-bold tracking-wide text-gray-500">Progresso Geral</p>
@@ -1131,132 +879,6 @@
         </div>
     </div>
     </section>
-
-    <section id="projectViewDashboard" data-project-view-panel class="hidden">
-    <div class="project-dashboard-grid">
-        <div class="project-dashboard-card">
-            <h2 class="project-section-title text-primary">Indicadores</h2>
-            <div class="mt-4 space-y-4">
-                <div>
-                    <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
-                        <span>Projeto como um todo</span>
-                        <span>{{ project_dashboard.overall_progress_percent }}%</span>
-                    </div>
-                    <div class="project-sprint-progress-track">
-                        <div class="project-sprint-progress-fill" data-progress-width="{{ project_dashboard.overall_progress_percent }}" data-progress-color="var(--primary-color)"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-500">
-                        <span>Cards no Kanban</span>
-                        <span>{{ project_dashboard.linked_cards_progress_percent }}%</span>
-                    </div>
-                    <div class="project-sprint-progress-track">
-                        <div class="project-sprint-progress-fill" data-progress-width="{{ project_dashboard.linked_cards_progress_percent }}" data-progress-color="#10b981"></div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3 pt-2">
-                    <div class="rounded-lg bg-gray-50 px-3 py-3">
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Docs</p>
-                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.documentation_total }}</p>
-                    </div>
-                    <div class="rounded-lg bg-gray-50 px-3 py-3">
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Sprints</p>
-                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.sprints_total }}</p>
-                    </div>
-                    <div class="rounded-lg bg-gray-50 px-3 py-3">
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Impedidos</p>
-                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.linked_cards_impeded }}</p>
-                    </div>
-                    <div class="rounded-lg bg-gray-50 px-3 py-3">
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Atrasados</p>
-                        <p class="mt-1 text-2xl font-bold text-gray-800">{{ project_dashboard.overdue_cards }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="project-dashboard-card">
-            <h2 class="project-section-title text-primary">Distribuição das Tarefas</h2>
-            <div class="mt-4">
-                {% for item in project_dashboard.task_status_breakdown %}
-                <div class="project-dashboard-list-item">
-                    <div class="mb-1 flex items-center justify-between text-sm font-semibold text-gray-700">
-                        <span>{{ item.label }}</span>
-                        <span>{{ item.count }}</span>
-                    </div>
-                    <div class="project-sprint-progress-track">
-                        <div class="project-sprint-progress-fill" data-progress-width="{{ item.percent }}" data-progress-color="var(--primary-color)"></div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="project-dashboard-card">
-            <h2 class="project-section-title text-primary">Distribuição das Subtarefas</h2>
-            <div class="mt-4">
-                {% for item in project_dashboard.subtask_status_breakdown %}
-                <div class="project-dashboard-list-item">
-                    <div class="mb-1 flex items-center justify-between text-sm font-semibold text-gray-700">
-                        <span>{{ item.label }}</span>
-                        <span>{{ item.count }}</span>
-                    </div>
-                    <div class="project-sprint-progress-track">
-                        <div class="project-sprint-progress-fill" data-progress-width="{{ item.percent }}" data-progress-color="#6366f1"></div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="project-dashboard-card">
-            <h2 class="project-section-title text-primary">Panorama das Sprints</h2>
-            <div class="mt-4">
-                {% for item in project_dashboard.sprint_status_breakdown %}
-                <div class="project-dashboard-list-item">
-                    <div class="mb-1 flex items-center justify-between text-sm font-semibold text-gray-700">
-                        <span>{{ item.label }}</span>
-                        <span>{{ item.count }}</span>
-                    </div>
-                    <div class="project-sprint-progress-track">
-                        <div class="project-sprint-progress-fill" data-progress-width="{{ item.percent }}" data-progress-color="#8b5cf6"></div>
-                    </div>
-                </div>
-                {% endfor %}
-                {% if project_dashboard.active_sprints %}
-                <div class="mt-4 rounded-lg bg-gray-50 px-3 py-3">
-                    <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Sprint ativa</p>
-                    <p class="mt-1 text-sm text-gray-700">
-                        {% for sprint in project_dashboard.active_sprints %}
-                        {{ sprint.name }}{% if not loop.last %}, {% endif %}
-                        {% endfor %}
-                    </p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="project-dashboard-card">
-            <h2 class="project-section-title text-primary">Pontos de Atenção</h2>
-            <div class="mt-4 space-y-3">
-                {% for item in project_dashboard.attention_items %}
-                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
-                    {{ item }}
-                </div>
-                {% endfor %}
-                {% if project_dashboard.next_due_card %}
-                <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
-                    Proximo prazo: {{ project_dashboard.next_due_card.title }} ate {{ project_dashboard.next_due_date_display }}.
-                </div>
-                {% endif %}
-                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
-                    {{ project_dashboard.linked_cards_without_owner }} card(s) vinculados estão sem responsável.
-                </div>
-            </div>
-        </div>
-    </div>
-    </section>
   </div>
 
   {% with modal_id='moveConfirmModal', message_id='moveConfirmMessage', cancel_func='cancelStatusChange()', confirm_func='confirmStatusChange()' %}
@@ -1322,7 +944,6 @@
     let pendingDeleteNote = null;
     let editNoteContext = { stepIndex: null, noteId: null, existingImages: [], removeImages: [] };
     const taskSectionStorageKey = 'project-task-sections-{{ project.id }}';
-    const projectViewStorageKey = 'project-detail-view-{{ project.id }}';
     const taskOrderStorageKey = 'project-task-order-{{ project.id }}';
 
     function getStoredTaskSectionState() {
@@ -1384,8 +1005,6 @@
             return;
         }
 
-        setProjectView('overview');
-
         const parts = openDetail.split('-');
         if (parts.length !== 2) {
             return;
@@ -1415,8 +1034,6 @@
         if (openTask === null || openTask === '') {
             return;
         }
-
-        setProjectView('overview');
 
         const taskDetailsEl = document.getElementById(`taskDetails-${openTask}`);
         if (taskDetailsEl) {
@@ -1454,71 +1071,6 @@
                 element.style.color = '#ffffff';
             }
         });
-    }
-
-    function applyProjectSprintProgressBars() {
-        document.querySelectorAll('[data-progress-width]').forEach(function(element) {
-            const progressWidth = Number(element.dataset.progressWidth || '0');
-            const boundedWidth = Math.max(0, Math.min(100, progressWidth));
-            element.style.width = `${boundedWidth}%`;
-            if (element.dataset.progressColor) {
-                element.style.backgroundColor = element.dataset.progressColor;
-            }
-        });
-    }
-
-    function setProjectSprintsExpanded(isExpanded) {
-        const panelEl = document.getElementById('projectSprintsPanel');
-        const toggleEl = document.getElementById('projectSprintsToggle');
-        if (!panelEl || !toggleEl) {
-            return;
-        }
-
-        panelEl.classList.toggle('hidden', !isExpanded);
-        toggleEl.classList.toggle('is-open', isExpanded);
-        toggleEl.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-    }
-
-    function toggleProjectSprints() {
-        const panelEl = document.getElementById('projectSprintsPanel');
-        if (!panelEl) {
-            return;
-        }
-        setProjectSprintsExpanded(panelEl.classList.contains('hidden'));
-    }
-
-    function setProjectView(viewName) {
-        document.querySelectorAll('[data-project-view-panel]').forEach(function(panelEl) {
-            panelEl.classList.toggle('hidden', panelEl.id !== `projectView${viewName.charAt(0).toUpperCase()}${viewName.slice(1)}`);
-        });
-
-        document.querySelectorAll('[data-project-view-btn]').forEach(function(buttonEl) {
-            buttonEl.classList.toggle('is-active', buttonEl.dataset.projectViewTarget === viewName);
-        });
-
-        if (viewName === 'sprints') {
-            setProjectSprintsExpanded(true);
-        }
-
-        try {
-            localStorage.setItem(projectViewStorageKey, viewName);
-        } catch (error) {
-            // Ignora falhas de persistencia local.
-        }
-    }
-
-    function restoreProjectView() {
-        let storedView = 'overview';
-        try {
-            storedView = localStorage.getItem(projectViewStorageKey) || 'overview';
-        } catch (error) {
-            storedView = 'overview';
-        }
-
-        if (!['overview', 'sprints', 'dashboard'].includes(storedView)) {
-            storedView = 'overview';
-        }
-        setProjectView(storedView);
     }
 
     function renderTaskOrder(direction) {
@@ -1638,40 +1190,12 @@
         inputEl.select();
     }
 
-    function syncProjectDocumentationType() {
-        const selectedOption = document.querySelector('[data-documentation-type-option]:checked');
-        const currentType = selectedOption ? selectedOption.value : 'image';
-
-        document.querySelectorAll('[data-documentation-type-section]').forEach(function(sectionEl) {
-            const isActive = sectionEl.dataset.documentationTypeSection === currentType;
-            sectionEl.classList.toggle('hidden', !isActive);
-
-            sectionEl.querySelectorAll('input').forEach(function(inputEl) {
-                if (inputEl.type === 'file' || inputEl.type === 'url') {
-                    inputEl.required = isActive;
-                }
-                if (!isActive && inputEl.type === 'file') {
-                    inputEl.value = '';
-                }
-                if (!isActive && inputEl.type === 'url') {
-                    inputEl.value = '';
-                }
-            });
-        });
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
         const shouldOpenDescription = "{{ 'true' if open_description else 'false' }}" === 'true';
         if (shouldOpenDescription) {
             toggleProjectDescription();
         }
 
-        document.querySelectorAll('[data-documentation-type-option]').forEach(function(optionEl) {
-            optionEl.addEventListener('change', syncProjectDocumentationType);
-        });
-        applyProjectSprintProgressBars();
-        syncProjectDocumentationType();
-        restoreProjectView();
         restoreTaskOrder();
     });
 

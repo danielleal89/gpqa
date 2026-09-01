@@ -324,8 +324,6 @@ def _build_project_dashboard(project, project_sprints):
 @projects_bp.route('/')
 def index():
     projects = load_projects()
-    for project in projects:
-        project['logo_url'] = build_file_url(project['logo_path']) if project.get('logo_path') else None
     return render_template(
         'projects/index.html',
         projects=projects,

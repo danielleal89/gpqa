@@ -448,7 +448,8 @@
                   </button>
               </div>
               <a href="{{ url_for('projects.index') }}" class="nav-link {{ 'active' if request.endpoint in ('projects.index', 'projects.detail', 'projects.create') else '' }}">Projetos</a>
-              <a href="{{ url_for('kanban.board') }}" class="nav-link {{ 'active' if request.endpoint and 'kanban' in request.endpoint else '' }}">Kanban</a>
+              <a href="{{ url_for('kanban.board') }}" class="nav-link {{ 'active' if request.endpoint in ('kanban.board', 'kanban.archived_board') else '' }}">Kanban</a>
+              <a href="{{ url_for('kanban.sprints_home') }}" class="nav-link {{ 'active' if request.endpoint in ('kanban.sprints_home', 'kanban.sprint_detail') else '' }}">Sprints</a>
               <a href="{{ url_for('projects.documentation_home') }}" class="nav-link {{ 'active' if request.endpoint and (request.endpoint == 'projects.documentation_home' or request.endpoint == 'projects.modules_home' or request.endpoint == 'projects.module_detail') else '' }}">Documentações</a>
           </div>
           {% endif %}

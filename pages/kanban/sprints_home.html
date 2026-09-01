@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sprints</title>
+  <script src="{{ url_for('static', filename='js/tailwindcss.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    body {
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #1f2937;
+        background-color: #f0f4f8;
+    }
+    .kanban-header {
+        background-color: white;
+        padding: 0.30rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        flex: none;
+    }
+    .kanban-title {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .kanban-subtitle {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.1rem;
+    }
+    .kanban-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .btn-new-task {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        font-family: var(--default-font);
+        background-color: var(--primary-color);
+        color: white;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        border: none;
+        cursor: pointer;
+    }
+    .btn-new-task:hover {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+    }
+    .submit-loading-btn {
+        position: relative;
+    }
+    .submit-loading-btn.is-loading {
+        opacity: 0.85;
+        pointer-events: none;
+    }
+    .submit-loading-btn-spinner {
+        width: 0.9rem;
+        height: 0.9rem;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #ffffff;
+        border-radius: 9999px;
+        display: inline-block;
+        animation: submit-loading-spin 0.7s linear infinite;
+    }
+    @keyframes submit-loading-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    .add-sprint-form {
+        background-color: rgba(255, 255, 255, 0.85);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.12);
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+    @media (min-width: 640px) {
+        .form-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .form-grid .form-field-full {
+            grid-column: 1 / -1;
+        }
+    }
+    .form-field label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        width: 100%;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.65rem;
+        font-size: 0.875rem;
+    }
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+    .sprints-shell {
+        width: min(100%, 1680px);
+        margin: 0 auto;
+        padding: 2rem 1rem 2.5rem;
+        flex: 1;
+    }
+    .sprints-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    @media (min-width: 768px) {
+        .sprints-shell {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+        .sprints-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.75rem;
+        }
+    }
+    @media (min-width: 1280px) {
+        .sprints-shell {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+        .sprints-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    .sprint-card {
+        background-color: var(--primary-color);
+        padding: 1.5rem 1.5rem 1.25rem;
+        border-radius: 1.25rem;
+        box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.35), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-top: 4px solid var(--secondary-color);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        text-decoration: none;
+        color: white;
+    }
+    .sprint-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.45), 0 6px 12px -4px rgba(0, 0, 0, 0.25);
+    }
+    .sprint-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .sprint-title {
+        color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+        line-height: 1.35;
+        min-width: 0;
+    }
+    .sprint-status-pill {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        flex: none;
+        white-space: nowrap;
+    }
+    .sprint-dates {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.6);
+    }
+    .sprint-progress-track {
+        height: 0.4rem;
+        border-radius: 9999px;
+        background-color: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+    }
+    .sprint-progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+        background-color: var(--secondary-color);
+    }
+    .sprint-card-divider {
+        height: 1px;
+        background-color: rgba(255, 255, 255, 0.14);
+    }
+    .sprint-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    .sprint-stat-box {
+        background-color: rgba(255, 255, 255, 0.07);
+        border-radius: 0.85rem;
+        padding: 0.65rem 0.9rem;
+        min-width: 0;
+    }
+    .sprint-stat-label {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+        margin-bottom: 0.35rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .sprint-stat-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  {% include 'partials/navbar.html' %}
+
+  <div class="kanban-header">
+    <div>
+      <h1 class="kanban-title">Sprints</h1>
+    </div>
+    {% if can_manage_sprints %}
+    <div class="kanban-actions">
+      <button type="button" onclick="toggleAddSprintForm()" class="btn-new-task">
+        + Nova Sprint
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="sprints-shell">
+    {% if can_manage_sprints %}
+    <div id="addSprintForm" class="hidden add-sprint-form">
+      <form action="{{ url_for('kanban.add_sprint') }}" method="POST">
+        <input type="hidden" name="next" value="kanban.sprints_home">
+        <div class="form-grid">
+          <div class="form-field form-field-full">
+            <label for="sprintName">Nome da sprint</label>
+            <input id="sprintName" type="text" name="name" placeholder="Ex: Sprint 4" required>
+          </div>
+          <div class="form-field">
+            <label for="sprintStatus">Status</label>
+            <select id="sprintStatus" name="status">
+              {% for option in sprint_status_options %}
+              <option value="{{ option.value }}" {{ 'selected' if option.value == 'planned' else '' }}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="sprintStart">Data de início</label>
+            <input id="sprintStart" type="date" name="start_date">
+          </div>
+          <div class="form-field">
+            <label for="sprintEnd">Data de fim</label>
+            <input id="sprintEnd" type="date" name="end_date">
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button type="button" onclick="toggleAddSprintForm()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-semibold hover:bg-gray-300">Cancelar</button>
+          <button type="submit" class="btn-new-task submit-loading-btn" data-loading-submit data-loading-text="Salvando...">Criar sprint</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    <div class="sprints-grid">
+      {% for sprint in sprints %}
+      <a href="{{ url_for('kanban.sprint_detail', sprint_id=sprint.id) }}" class="sprint-card">
+        <div class="sprint-card-header">
+          <h2 class="sprint-title" title="{{ sprint.name }}">{{ sprint.name }}</h2>
+          <span class="sprint-status-pill" style="background-color: {{ sprint.status_theme.bg }}; color: {{ sprint.status_theme.text }};">
+            {{ sprint.status_label }}
+          </span>
+        </div>
+
+        {% if sprint.start_date_display or sprint.end_date_display %}
+        <p class="sprint-dates">
+          {{ sprint.start_date_display or '?' }} &rarr; {{ sprint.end_date_display or '?' }}
+        </p>
+        {% endif %}
+
+        <div class="sprint-progress-track">
+          <div class="sprint-progress-fill" style="width: {{ sprint.task_counts.percent }}%;"></div>
+        </div>
+
+        <div class="sprint-card-divider"></div>
+
+        <div class="sprint-stats-grid">
+          <div class="sprint-stat-box">
+            <div class="sprint-stat-label">Tarefas</div>
+            <div class="sprint-stat-value">{{ sprint.task_counts.total }}</div>
+          </div>
+          <div class="sprint-stat-box">
+            <div class="sprint-stat-label">Concluídas</div>
+            <div class="sprint-stat-value">{{ sprint.task_counts.percent }}%</div>
+          </div>
+        </div>
+      </a>
+      {% else %}
+      <div class="col-span-full text-center py-10">
+        <p class="text-gray-500 text-lg">Nenhuma sprint cadastrada ainda.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    function toggleAddSprintForm() {
+        document.getElementById('addSprintForm').classList.toggle('hidden');
+    }
+
+    function applySubmitLoadingState(button) {
+        const loadingText = button.dataset.loadingText || 'Salvando...';
+        button.disabled = true;
+        button.classList.add('is-loading');
+        button.innerHTML = `<span class="inline-flex items-center gap-2"><span class="submit-loading-btn-spinner" aria-hidden="true"></span><span>${loadingText}</span></span>`;
+    }
+
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            if (form.dataset.isSubmitting === 'true') {
+                return;
+            }
+            const submitButton = form.querySelector('[data-loading-submit]');
+            if (!submitButton) {
+                return;
+            }
+            form.dataset.isSubmitting = 'true';
+            applySubmitLoadingState(submitButton);
+        });
+    });
+  </script>
+
+</body>
+</html>
