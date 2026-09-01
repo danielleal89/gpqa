@@ -14,7 +14,7 @@ from .models import (
     update_card_details, delete_card, archive_card, unarchive_card, get_users, add_card_note, get_card_by_id,
     get_project_tasks_available, get_all_projects, get_default_column_id, get_default_column_slug,
     get_linked_project_task_refs, get_sprints, create_sprint, update_sprint, delete_sprint,
-    get_sprint_status_options, DONE_COLUMN_SLUG
+    get_sprint_status_options, get_sprint_by_id, get_board_columns, DONE_COLUMN_SLUG
 )
 try:
     from ..projects.models import get_project, update_project_substep
@@ -210,6 +210,126 @@ def board():
 @login_required
 def archived_board():
     return _render_board(archived_view=True)
+
+
+def _get_all_cards_including_archived(sprints=None):
+    active_cards = get_board_data(archived=False, sprints=sprints)['cards']
+    archived_cards = get_board_data(archived=True, sprints=sprints)['cards']
+    return active_cards + archived_cards
+
+
+def _sprint_task_counts(cards):
+    total = len(cards)
+    done = sum(1 for card in cards if card['column_id'] == DONE_COLUMN_SLUG)
+    percent = int(round(done / total * 100)) if total else 0
+    return {'total': total, 'done': done, 'percent': percent}
+
+
+def _is_card_overdue(card, today):
+    if card['column_id'] == DONE_COLUMN_SLUG:
+        return False
+    end_date = (card.get('end_date') or '').strip()
+    if not end_date:
+        return False
+    try:
+        return datetime.strptime(end_date, '%Y-%m-%d').date() < today
+    except ValueError:
+        return False
+
+
+def _build_sprint_dashboard(cards, users, columns):
+    users_by_id = {str(user['id']): user for user in users}
+    columns_by_slug = {column['slug']: column for column in columns}
+    today = datetime.now().date()
+
+    column_counts = {column['slug']: 0 for column in columns}
+    priority_counts = {'Alta': 0, 'Media': 0, 'Baixa': 0}
+    overdue_total = 0
+    impedido_total = 0
+    user_groups = {}
+
+    for card in cards:
+        column_counts[card['column_id']] = column_counts.get(card['column_id'], 0) + 1
+        priority = card.get('priority') or 'Media'
+        priority_counts[priority] = priority_counts.get(priority, 0) + 1
+        if card.get('impedido'):
+            impedido_total += 1
+
+        card['is_overdue'] = _is_card_overdue(card, today)
+        if card['is_overdue']:
+            overdue_total += 1
+        card['column'] = columns_by_slug.get(card['column_id'])
+
+        uid = card.get('assigned_to')
+        group = user_groups.setdefault(uid, {'user': users_by_id.get(uid), 'tasks': []})
+        group['tasks'].append(card)
+
+    user_cards = []
+    for uid, group in user_groups.items():
+        counts = _sprint_task_counts(group['tasks'])
+        tasks_sorted = sorted(
+            group['tasks'],
+            key=lambda card: (card['column_id'] == DONE_COLUMN_SLUG, not card['is_overdue'], card['title'] or '')
+        )
+        user_cards.append({
+            'user': group['user'],
+            'user_name': group['user']['name'] if group['user'] else 'Sem responsável',
+            'user_color': group['user']['color'] if group['user'] and group['user'].get('color') else '#94a3b8',
+            'tasks': tasks_sorted,
+            'counts': counts
+        })
+    user_cards.sort(key=lambda group: (-group['counts']['total'], group['user_name']))
+
+    return {
+        'user_cards': user_cards,
+        'column_counts': column_counts,
+        'priority_counts': priority_counts,
+        'overdue_total': overdue_total,
+        'impedido_total': impedido_total,
+        'counts': _sprint_task_counts(cards)
+    }
+
+
+@kanban_bp.route('/sprints')
+@login_required
+def sprints_home():
+    sprints = get_sprints()
+    all_cards = _get_all_cards_including_archived(sprints=sprints)
+    cards_by_sprint = {}
+    for card in all_cards:
+        if card.get('sprint_id'):
+            cards_by_sprint.setdefault(card['sprint_id'], []).append(card)
+
+    for sprint in sprints:
+        sprint['task_counts'] = _sprint_task_counts(cards_by_sprint.get(sprint['id'], []))
+
+    return render_template(
+        'kanban/sprints_home.html',
+        sprints=sprints,
+        sprint_status_options=get_sprint_status_options(),
+        can_manage_sprints=current_user.is_admin
+    )
+
+
+@kanban_bp.route('/sprints/<int:sprint_id>')
+@login_required
+def sprint_detail(sprint_id):
+    sprint = get_sprint_by_id(sprint_id)
+    if not sprint:
+        return "Sprint not found", 404
+
+    users = get_users()
+    columns = get_board_columns()
+    all_cards = _get_all_cards_including_archived()
+    cards = [card for card in all_cards if card.get('sprint_id') == sprint_id]
+    dashboard = _build_sprint_dashboard(cards, users, columns)
+
+    return render_template(
+        'kanban/sprint_detail.html',
+        sprint=sprint,
+        columns=columns,
+        **dashboard
+    )
 
 
 @kanban_bp.route('/columns/create', methods=['POST'])
@@ -486,12 +606,22 @@ def edit_card(card_id):
     return redirect(url_for('kanban.board'))
 
 
+_ALLOWED_SPRINT_REDIRECTS = {'kanban.board', 'kanban.sprints_home'}
+
+
+def _sprint_redirect_target():
+    next_endpoint = request.form.get('next')
+    if next_endpoint in _ALLOWED_SPRINT_REDIRECTS:
+        return redirect(url_for(next_endpoint))
+    return redirect(url_for('kanban.board'))
+
+
 @kanban_bp.route('/sprints/create', methods=['POST'])
 @login_required
 def add_sprint():
     if not current_user.is_admin:
         flash('Apenas administradores podem cadastrar sprints.', 'danger')
-        return redirect(url_for('kanban.board'))
+        return _sprint_redirect_target()
 
     try:
         create_sprint(
@@ -505,7 +635,7 @@ def add_sprint():
         flash('Sprint cadastrada com sucesso.', 'success')
     except ValueError as exc:
         flash(str(exc), 'danger')
-    return redirect(url_for('kanban.board'))
+    return _sprint_redirect_target()
 
 
 @kanban_bp.route('/sprints/update/<int:sprint_id>', methods=['POST'])
