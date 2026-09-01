@@ -317,6 +317,20 @@
     color: var(--primary-color);
   }
 
+  .vacation-countdown-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #92400e;
+    background-color: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 9999px;
+    padding: 0.35rem 0.85rem;
+    white-space: nowrap;
+  }
+
   .kanban-actions {
     display: flex;
     gap: 0.5rem;
@@ -449,6 +463,18 @@
             Quadro Kanban
           {% endif %}
       </h1>
+      {% if vacation_countdown %}
+      <div class="vacation-countdown-pill" title="Férias a partir de {{ vacation_countdown.start_date_display }}">
+        <span>🏖️</span>
+        {% if vacation_countdown.days_remaining > 0 %}
+        Faltam {{ vacation_countdown.days_remaining }} dia{{ 's' if vacation_countdown.days_remaining != 1 else '' }} para suas férias!
+        {% elif vacation_countdown.days_remaining == 0 %}
+        Suas férias começam hoje!
+        {% else %}
+        Suas férias já começaram.
+        {% endif %}
+      </div>
+      {% endif %}
       <div class="kanban-actions">
           <form method="get" action="{% if archived_view %}{{ url_for('kanban.archived_board') }}{% else %}{{ url_for('kanban.board') }}{% endif %}" class="flex items-center space-x-2 mr-3">
               <input type="hidden" name="view" id="viewModeInput" value="{{ view_mode or 'board' }}">

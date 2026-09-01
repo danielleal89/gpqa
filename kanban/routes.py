@@ -2,7 +2,7 @@ import sqlite3
 
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
 from flask_login import login_required, current_user
-from datetime import datetime
+from datetime import datetime, date
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from werkzeug.utils import secure_filename
 try:
@@ -179,6 +179,15 @@ def _render_board(archived_view=False):
 
             columns_data[card['column_id']]['cards'].append(card)
 
+    vacation_countdown = None
+    if getattr(current_user, 'name', None) == 'Andréia':
+        vacation_start = date(2026, 10, 13)
+        days_remaining = (vacation_start - datetime.now().date()).days
+        vacation_countdown = {
+            'days_remaining': days_remaining,
+            'start_date_display': '13/10/2026'
+        }
+
     return render_template(
         'board.html',
         columns=columns_data,
@@ -192,7 +201,8 @@ def _render_board(archived_view=False):
         selected_project_id=selected_project_id,
         selected_sprint_id=selected_sprint_id,
         view_mode=view_mode,
-        archived_view=archived_view
+        archived_view=archived_view,
+        vacation_countdown=vacation_countdown
     )
 
 
